@@ -1,10 +1,10 @@
 
 "use client";
-
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import AudioFeaturesDisplay from './components/AudioFeaturesDisplay';
+import StoryModal from './components/StoryModal';
 
 // Define styles directly in the component
 const styles = {
@@ -309,6 +309,10 @@ const styles = {
     padding: '0.75rem 0',
     borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
   },
+  trackItemHover: {
+    transform: 'scale(1.05)',  // 當鼠標移到時，稍微放大
+    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',  // 增加陰影效果
+  },
   trackNumber: {
     width: '30px',
     fontSize: '1rem',
@@ -504,6 +508,15 @@ export default function Home() {
   const [aiInsights, setAiInsights] = useState([]);
   const [audioFeaturesData, setAudioFeaturesData] = useState(null);
   const [expandedTrackId, setExpandedTrackId] = useState(null);
+
+  // story modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [story, setStory] = useState(null);
+  const [trackId, setTrackId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hoveredTrackId, setHoveredTrackId] = useState(null); // 追蹤 hover 的 track id
+  const [clickedTrackId, setClickedTrackId] = useState(null); // 追蹤哪個按鈕被點了
+
   
   // Function to fetch user profile - defined with useCallback to avoid dependency warnings
   const fetchUserProfile = useCallback(async (token) => {
@@ -855,7 +868,48 @@ useEffect(() => {
       setIsGenerating(false);
     }
   }
+  const getStoryForTrack = async (artist, song) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/story_agent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ artist, song }),
+      });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      return data.story;
+    } catch (error) {
+      console.error('無法獲取故事:', error.message);
+      return `錯誤: ${error.message}`;
+    } finally {
+      setIsLoading(false);
+      setClickedTrackId(null);
+    }
+  };
+
+  // 處理按鈕點擊
+  const handleTrackClick = async (trackId, artist, song) => {
+    try {
+      const trackStory = await getStoryForTrack(artist, song);
+      setStory(trackStory);
+      setTrackId(trackId);
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('處理歌曲故事時出錯:', error);
+      setStory(`錯誤: ${error.message}`);
+      setIsModalOpen(true);
+    }
+  };
   return (
     <div style={styles.container}>
       <nav style={styles.navbar}>
@@ -985,6 +1039,8 @@ useEffect(() => {
           </div>
         </div>
 
+      
+
         <div style={styles.inputContainer}>
           <label style={styles.promptLabel} htmlFor="mood-prompt">
             Enter your mood or vibe
@@ -1028,11 +1084,16 @@ useEffect(() => {
             ) : topTracks.length > 0 ? (
               <ul style={styles.tracksList}>
                 {topTracks.map((track, index) => (
-                  <li key={track.id} style={styles.trackItem}>
+                  <li
+                    key={track.id}
+                    style={{
+                      ...styles.trackItem,
+                    }}
+                  >
                     <span style={styles.trackNumber}>{index + 1}</span>
                     {track.album.images && track.album.images.length > 0 && (
-                      <Image 
-                        src={track.album.images[2].url} 
+                      <Image
+                        src={track.album.images[2].url}
                         alt={track.album.name}
                         width={40}
                         height={40}
@@ -1046,6 +1107,29 @@ useEffect(() => {
                         {track.artists.map(artist => artist.name).join(', ')}
                       </div>
                     </div>
+                    <button
+                      key={track.id}
+                      onClick={() =>{
+                        setClickedTrackId(track.id); // 設定目前點到的track id
+                        setIsLoading(true);
+                        handleTrackClick(
+                          track.id,
+                          track.artists[0].name,
+                          track.name
+                        );
+                    }}
+                      style={{
+                        ...styles.button,
+                        ...(isLoading ? styles.buttonDisabled : {}),
+                        ...(hoveredTrackId === track.id ? styles.trackItemHover : {})
+                      }}
+                      onMouseEnter={() => setHoveredTrackId(track.id)}
+                      onMouseLeave={() => setHoveredTrackId(null)}
+                      disabled={isLoading && clickedTrackId === track.id}
+                      aria-label="生成歌曲故事"
+                    >
+                      {isLoading ? '生成中...' : '生成故事'}
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -1054,7 +1138,17 @@ useEffect(() => {
             )}
           </div>
         )}
-        
+        {isModalOpen && (
+        <StoryModal
+          story={story}
+          trackId={trackId}
+          onClose={() => {
+            setIsModalOpen(false);
+            setStory(null);
+            setTrackId(null);
+          }}
+        />
+      )}
         {/* Display recommendations if available */}
         {recommendations.length > 0 && (
           <div style={styles.recommendationsSection}>
@@ -1076,7 +1170,12 @@ useEffect(() => {
             
             <ul style={styles.recommendationsList}>
               {recommendations.map((track, index) => (
-                <li key={track.id} style={styles.trackItem}>
+                 <li
+                 key={track.id}
+                 style={{
+                   ...styles.trackItem,
+                 }}
+               >
                   <span style={styles.trackNumber}>{index + 1}</span>
                   {track.album.images && track.album.images.length > 0 && (
                     <Image 
@@ -1173,10 +1272,35 @@ useEffect(() => {
                       </div>
                     </div>
                   </div>
+                  <button
+                      key={track.id}
+                      onClick={() =>{
+                        setClickedTrackId(track.id); // 設定目前點到的track id
+                        setIsLoading(true);
+                        handleTrackClick(
+                          track.id,
+                          track.artists[0].name,
+                          track.name
+                        );
+                    }}
+                      style={{
+                        ...styles.button,
+                        ...(isLoading ? styles.buttonDisabled : {}),
+                        ...(hoveredTrackId === track.id ? styles.trackItemHover : {})
+                      }}
+                      onMouseEnter={() => setHoveredTrackId(track.id)}
+                      onMouseLeave={() => setHoveredTrackId(null)}
+                      disabled={isLoading && clickedTrackId === track.id}
+                      aria-label="生成歌曲故事"
+                    >
+                      {isLoading ? '生成中...' : '生成故事'}
+                    </button>
                 </li>
               ))}
             </ul>
-            
+            {/* Story Modal */}
+            {/* {isModalOpen && <StoryModal story={story} onClose={() => setIsModalOpen(false)} />} */}
+
             {/* AI Insights */}
             {aiInsights && aiInsights.length > 0 && (
               <div style={styles.insightsContainer}>

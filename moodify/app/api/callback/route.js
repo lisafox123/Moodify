@@ -27,8 +27,8 @@ export async function GET(request) {
 
     // Use the exact same redirect URI that was used in the authorization request
     // IMPORTANT: This must match exactly with what's registered in Spotify Dashboard
-    const redirectUri = 'https://moodify-silk.vercel.app/api/callback';
-
+    // const redirectUri = 'https://moodify-silk.vercel.app/api/callback';
+    const redirectUri = 'http://127.0.0.1:3000';
     console.log('Exchanging code for tokens with redirect URI:', redirectUri);
 
     // Exchange the code for tokens
@@ -68,7 +68,8 @@ export async function POST(request) {
     
     // Use the exact same redirect URI that was used in the authorization request
     // IMPORTANT: This must match exactly what's registered in Spotify Dashboard
-    const redirectUri = 'https://moodify-silk.vercel.app/api/callback';
+    // const redirectUri = 'https://moodify-silk.vercel.app/api/callback'
+    const redirectUri = 'http://127.0.0.1:3000';
     
     // Exchange the code for tokens using our updated spotify utility function
     const tokens = await exchangeCodeForTokens(code, redirectUri);
