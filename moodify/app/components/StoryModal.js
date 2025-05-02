@@ -27,7 +27,7 @@ const StoryModal = ({ story, trackId, onClose }) => {
         {story.startsWith('錯誤') || story.includes('無法') ? (
           <p style={{ backgroundColor: 'lightblue', whiteSpace: 'pre-wrap',color:" #000000" }}>{story}</p>
         ) : (
-          <p style={{ color: 'balck',whiteSpace: 'pre-wrap' }}>{story}</p>
+          <p style={{ color: 'balck',whiteSpace: 'pre-wrap',color:" #000000"  }}>{story}</p>
         )}
         
       </div>

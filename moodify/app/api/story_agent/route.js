@@ -23,8 +23,12 @@ const storyTool = new DynamicTool({
   func: async (input) => {
     try {
       // 解析輸入（支援更多格式）
-      const [artist, ...songParts] = input.split(/[-–—]/).map((s) => s.trim());
-      const song = songParts.join(' ');
+      const parts = input.split(/[-–—]/).map((s) => s.trim());
+
+      const artist = parts[0];
+      const song = parts[1];
+      const customStory = parts.length > 2 ? parts.slice(2).join(' ') : null;
+      console.log(customStory)
       if (!artist || !song) {
         return '輸入格式錯誤，請提供「藝術家 - 歌曲」格式';
       }
@@ -45,12 +49,15 @@ const storyTool = new DynamicTool({
       const storyBg = await llm.invoke([{ role: 'user', content: userPrompt }]);
       const data = extractJson(storyBg.content);
       const { story_theme, tone } = data;
-
+      let prompt;
       // 生成故事
-      const prompt = ChatPromptTemplate.fromTemplate(
-        `請根據以下條件撰寫一篇個人視角的短篇故事，主題為「${story_theme}」。用${tone}的語調來設計這篇故事。`
-      );
-      const story = await prompt.pipe(llm).invoke({});
+      if (customStory){
+        prompt = `請根據以下條件撰寫一篇個人視角的短篇故事，主題為「${story_theme}」且須具有使用者指定故事元素${customStory}。用${tone}的語調來設計這篇故事。`
+      }
+      else{
+        prompt = `請根據以下條件撰寫一篇個人視角的短篇故事，主題為「${story_theme}」。用${tone}的語調來設計這篇故事。`
+      }
+      const story = await llm.invoke([{ role: 'user', content: prompt }]);
       console.log(story)
       return story.content;
     } catch (error) {
@@ -65,19 +72,26 @@ const tools = [storyTool];
 // POST 請求
 export async function POST(req) {
   try {
-    const { artist, song } = await req.json();
+    const { artist, song,customStory } = await req.json();
     if (!artist || !song) {
       return new Response(
         JSON.stringify({ error: '必須提供 artist 和 song 參數' }),
         { status: 400 }
       );
     }
-
     const modelWithTools = llm.bindTools(tools);
+    let prompt_cusstory;
+    if (customStory){
+      prompt_cusstory = `使用工具以${artist} - ${song}寫一個故事，使用者希望含有的元素${customStory}`;
+    }
+    else{
+      prompt_cusstory = `使用工具以${artist} - ${song}寫一個故事`;
+    }
+
     const result = await modelWithTools.invoke([
       {
         role: 'user',
-        content: `幫我用${artist} - ${song}寫一個故事`,
+        content: prompt_cusstory,
       },
     ]);
     console.log(result)
@@ -85,7 +99,10 @@ export async function POST(req) {
     if (result.tool_calls?.length) {
       const toolCall = result.tool_calls[0];
       if (toolCall.name === 'story_generation') {
-        const story = await storyTool.func(`${artist} - ${song}`);
+        const input = customStory
+          ? `${artist} - ${song} - ${customStory}`
+          : `${artist} - ${song}`;
+        const story = await storyTool.func(input);
         return new Response(JSON.stringify({ story }), { status: 200 });
       }
     }

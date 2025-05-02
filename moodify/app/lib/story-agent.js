@@ -21,6 +21,7 @@ const llm = new ChatMistralAI({
 // 爬取 KKBOX 歌曲 URL
 export async function kkbox(artist, song) {
   try {
+    console.log(artist,song)
     const query = encodeURIComponent(`${artist} ${song}`);
     const url = `https://www.kkbox.com/api/search/song?q=${query}&terr=tw&lang=tc`;
     const headers = { 'User-Agent': 'Mozilla/5.0' };
@@ -79,46 +80,15 @@ export function extractJson(text) {
 // StoryTool 類
 export class StoryTool {
   name = 'story';
-  description = '根據指定的藝術家和歌曲，產生一段故事';
+  description = '根據指定的藝術家和歌曲以及使用者的指定故事元素，產生一段故事';
 
   schema = {
     type: 'object',
     properties: {
       artist: { type: 'string', description: '藝術家或樂團名稱' },
       song: { type: 'string', description: '歌曲名稱' },
+      customStory: { type: 'string', description: '故事元素' },
     },
     required: ['artist', 'song'],
   };
-
-  async _call({ artist, song }) {
-    try {
-      // 爬取歌詞
-      const url = await kkbox(artist, song);
-      if (!url) return '找不到歌曲資訊';
-
-      const lyrics = await getLyrics(url);
-      if (!lyrics || lyrics.includes('找不到') || lyrics.includes('無法')) {
-        return '無法獲取歌詞，請試試其他歌曲';
-      }
-
-      // 生成故事主題
-      const userPrompt = `請根據歌詞的介紹 ${lyrics}，來設定與歌詞有關的故事主題，以及這則故事的語調。你的回應必須是 **標準 JSON 格式**，無多餘內容。例如：周杰倫的歌曲《稻香》講述了珍惜生活和回歸簡單的美好。輸出: {"story_theme": "珍惜生活和回歸簡單的美好", "tone": "溫暖且懷舊，觸景生情"}`;
-
-      const storyBg = await llm.invoke([{ role: 'user', content: userPrompt }]);
-      const data = extractJson(storyBg.content);
-      const { story_theme, tone } = data;
-
-      // 生成故事
-      const prompt = ChatPromptTemplate.fromTemplate(
-        `請根據以下條件撰寫一篇個人視角的短篇故事腳本，主題為「${story_theme}」。用${tone}的語調來設計這篇故事。`
-      );
-      const chain = prompt.pipe(llm);
-      const story = await chain.invoke({});
-
-      return story.content;
-    } catch (error) {
-      console.error('Story generation error:', error.message);
-      return `生成故事時發生錯誤: ${error.message}`;
-    }
-  }
 }

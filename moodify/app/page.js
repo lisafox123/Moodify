@@ -876,7 +876,7 @@ useEffect(() => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ artist, song }),
+        body: JSON.stringify({ artist, song,customStory: customStory ? customStory : ''}),
       });
 
       if (!response.ok) {
