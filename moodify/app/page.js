@@ -13,7 +13,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     backgroundColor: '#0f0f1a',
-    color: 'white',
+    color: '#7A7687',
   },
   button: {
     display: 'inline-flex',
@@ -21,7 +21,7 @@ const styles = {
     justifyContent: 'center',
     padding: '0.75rem 1.5rem',
     backgroundColor: '#ff7e5f',
-    background: 'linear-gradient(90deg, #ff7e5f, #fe4a85)',
+    background: 'linear-gradient(90deg, #C7C1DB, #9E94BE)',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -33,7 +33,7 @@ const styles = {
   },
   buttonHover: {
     transform: 'translateY(-2px)',
-    boxShadow: '0 6px 20px rgba(255, 126, 95, 0.3)',
+    boxShadow: '0 6px 20px rgba(115, 102, 159, 0.3)',
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -50,7 +50,7 @@ const styles = {
     position: 'sticky',
     top: 0,
     zIndex: 10,
-    backgroundColor: '#0f0f1a',
+    backgroundColor: '#C7C1DB',
   },
   logoContainer: {
     display: 'flex',
@@ -60,7 +60,7 @@ const styles = {
   logoText: {
     fontSize: '2rem',
     fontWeight: 'bold',
-    background: 'linear-gradient(90deg, #ff7e5f, #feb47b)',
+    background: 'linear-gradient(90deg, #f9b42a, #e7e789)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: 0,
@@ -75,8 +75,8 @@ const styles = {
     alignItems: 'center',
     gap: '0.5rem',
     padding: '0.5rem 1rem',
-    backgroundColor: '#1DB954', // Spotify green
-    color: 'white',
+    backgroundColor: '#E7E789', // Spotify green
+    color: '#73669F',
     border: 'none',
     borderRadius: '2rem',
     cursor: 'pointer',
@@ -92,7 +92,7 @@ const styles = {
   userName: {
     fontWeight: '500',
     fontSize: '1rem',
-    color: 'white',
+    color: '#7A7687',
   },
   userAvatar: {
     borderRadius: '50%',
@@ -104,6 +104,7 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     padding: '3rem 1.5rem',
+    backgroundColor: '#FFFFF2',
   },
   inputContainer: {
     width: '100%',
@@ -114,16 +115,16 @@ const styles = {
     width: '100%',
     padding: '1.25rem',
     fontSize: '1.125rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    color: 'white',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 255, 0.05)',
+    color: '#7A7687',
+    border: '1px solid rgba(0, 0, 255, 0.1)',
     borderRadius: '12px',
     outline: 'none',
     transition: 'all 0.3s ease',
   },
   promptInputFocus: {
-    border: '1px solid rgba(255, 126, 95, 0.5)',
-    boxShadow: '0 0 0 4px rgba(255, 126, 95, 0.1)',
+    border: '1px solid rgba(115, 102, 159, 0.5)',
+    boxShadow: '0 0 0 4px rgba(115, 102, 159, 0.1)',
   },
   promptLabel: {
     display: 'block',
@@ -136,7 +137,7 @@ const styles = {
     lineHeight: 1.15,
     fontSize: '2.5rem',
     textAlign: 'center',
-    background: 'linear-gradient(135deg, #ff7e5f, #ff556e, #d16ba5, #c777b9)',
+    background: 'linear-gradient(135deg, #f6b127, #E7C889, #E7E789, #e5e53a)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     padding: '0.5rem 0',
@@ -172,14 +173,14 @@ const styles = {
     flexDirection: 'column',
     width: 'calc(50% - 0.5rem)',
     padding: '0.75rem 1rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(0, 0, 255, 0.05)',
     borderRadius: '8px',
   },
   switchLabel: {
     fontWeight: '500',
     fontSize: '0.875rem',
     marginBottom: '0.5rem',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(122, 118, 135, 0.8)',
   },
   // Updated toggle button styles
   toggleButton: {
@@ -199,14 +200,14 @@ const styles = {
     overflow: 'hidden',
   },
   toggleButtonActive: {
-    background: 'linear-gradient(90deg, #ff7e5f, #fe4a85)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    boxShadow: '0 0 10px rgba(255, 126, 95, 0.3)',
+    background: 'linear-gradient(90deg, #E8E6F0, #73669F)',
+    borderColor: 'rgba(115, 102, 159, 0.2)',
+    boxShadow: '0 0 10px rgba(115, 102, 159, 0.3)',
   },
   toggleButtonInactive: {
-    background: 'linear-gradient(90deg, #4a6eff, #7e56c9)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 0 10px rgba(74, 110, 255, 0.2)',
+    background: 'linear-gradient(90deg, #FFF4DD, #E7C889)',
+    borderColor: 'rgba(231, 200, 137, 0.1)',
+    boxShadow: '0 0 10px rgba(231, 200, 137, 0.2)',
   },
   toggleSlider: {
     position: 'absolute',
@@ -278,23 +279,23 @@ const styles = {
   customInput: {
     padding: '0.5rem 0.75rem',
     fontSize: '0.875rem',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    color: 'white',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(115, 102, 159, 0.2)',
+    color: '#7A7687',
+    border: '1px solid rgba(199, 193, 219, 0.1)',
     borderRadius: '20px',
     outline: 'none',
     transition: 'all 0.3s ease',
   },
   customInputFocus: {
-    border: '1px solid rgba(255, 126, 95, 0.5)',
-    boxShadow: '0 0 0 3px rgba(255, 126, 95, 0.1)',
+    border: '1px solid rgba(115, 102, 159, 0.5)',
+    boxShadow: '0 0 0 3px rgba(115, 102, 159, 0.1)',
   },
   // New styles for top tracks section
   topTracksSection: {
     width: '100%',
     maxWidth: '800px',
     marginTop: '2rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(0, 0, 255, 0.05)',
     borderRadius: '12px',
     padding: '1.5rem',
   },
@@ -307,7 +308,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     padding: '0.75rem 0',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+    borderBottom: '1px solid rgba(115, 102, 159, 0.1)',
   },
   trackItemHover: {
     transform: 'scale(1.05)',  // 當鼠標移到時，稍微放大
@@ -317,7 +318,7 @@ const styles = {
     width: '30px',
     fontSize: '1rem',
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(122, 118, 135, 0.7)',
   },
   trackImage: {
     borderRadius: '4px',
@@ -333,19 +334,19 @@ const styles = {
   },
   trackArtist: {
     fontSize: '0.875rem',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(122, 118, 135, 0.7)',
   },
   loadingIndicator: {
     textAlign: 'center',
     padding: '1rem',
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(122, 118, 135, 0.7)',
   },
   // Recommendations styles
   recommendationsSection: {
     width: '100%',
     maxWidth: '800px',
     marginTop: '2rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(0, 0, 255, 0.05)',
     borderRadius: '12px',
     padding: '1.5rem',
   },
@@ -354,7 +355,7 @@ const styles = {
     marginBottom: '1.5rem',
     padding: '1rem',
     borderRadius: '8px',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(158, 148, 190, 0.2)',
     lineHeight: '1.6',
   },
   recommendationsList: {
@@ -384,9 +385,10 @@ const styles = {
   // New styles for audio features and insights
   trackDetails: {
     padding: '0.75rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    backgroundColor: 'rgba(0, 0, 255, 0.02)',
     borderRadius: '8px',
     marginTop: '0.5rem',
+    marginRight: '1rem',
     overflow: 'hidden',
     maxHeight: '0',
     transition: 'max-height 0.3s ease, padding 0.3s ease',
@@ -398,7 +400,7 @@ const styles = {
   detailsButton: {
     background: 'none',
     border: 'none',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(115, 102, 159, 0.6)',
     fontSize: '0.75rem',
     cursor: 'pointer',
     padding: '0.25rem 0.5rem',
@@ -408,15 +410,15 @@ const styles = {
   insightsContainer: {
     marginTop: '2rem',
     padding: '1rem',
-    backgroundColor: 'rgba(255, 126, 95, 0.1)',
+    backgroundColor: 'rgba(231, 200, 137, 0.1)',
     borderRadius: '8px',
-    border: '1px solid rgba(255, 126, 95, 0.3)',
+    border: '1px solid rgba(231, 200, 137, 0.3)',
   },
   insightTitle: {
     fontSize: '1.1rem',
     fontWeight: '600',
     marginBottom: '1rem',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(122, 118, 135, 0.9)',
   },
   insightsList: {
     listStyle: 'none',
@@ -426,7 +428,7 @@ const styles = {
   insightItem: {
     padding: '0.75rem',
     marginBottom: '0.75rem',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(231, 200, 137, 0.2)',
     borderRadius: '8px',
     fontSize: '0.9rem',
     lineHeight: '1.5',
@@ -957,12 +959,13 @@ useEffect(() => {
                 onClick={handleLogout}
                 style={{
                   backgroundColor: 'transparent',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  color: 'white',
+                  border: '1px solid rgba(231, 231, 137, 0.3)',
+                  color: '#E7E789',
                   borderRadius: '2rem',
                   padding: '0.25rem 0.75rem',
                   fontSize: '0.75rem',
                   cursor: 'pointer',
+                  fontWeight: 'bold',
                 }}
               >
                 Logout
