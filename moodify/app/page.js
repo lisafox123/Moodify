@@ -437,7 +437,39 @@ const styles = {
     marginTop: '1rem',
     marginBottom: '1.5rem',
   },
+
+
+  spotifyListenButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.5rem 1rem',
+    backgroundColor: '#1DB954', // Spotify green
+    color: 'white',
+    border: 'none',
+    borderRadius: '2rem',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    transition: 'all 0.2s ease',
+    textDecoration: 'none',
+    marginLeft: '1rem',
+  },
+  spotifyListenButtonHover: {
+    backgroundColor: '#1aa34a',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 12px rgba(29, 185, 84, 0.3)',
+  },
+
+  // Style for track buttons container
+  trackButtonsContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    marginLeft: 'auto',
+    gap: '0.5rem',
+  }
 };
+
 
 
 // Toggle Switch Component
@@ -487,21 +519,21 @@ export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
   const [buttonHover, setButtonHover] = useState(false);
-  
+
   // Authentication and user state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState(null);
   const [accessToken, setAccessToken] = useState('');
   const [topTracks, setTopTracks] = useState([]);
   const [isLoadingTracks, setIsLoadingTracks] = useState(false);
-  
+
   // Toggle states
   const [moodMode, setMoodMode] = useState(true);
   const [playlistMode, setPlaylistMode] = useState(false);
   const [customMode, setCustomMode] = useState(false);
   const [customStory, setCustomStory] = useState('');
   const [customInputFocused, setCustomInputFocused] = useState(false);
-  
+
   // Recommendations state
   const [isGenerating, setIsGenerating] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
@@ -519,7 +551,7 @@ export default function Home() {
   const [hoveredTrackId, setHoveredTrackId] = useState(null); // 追蹤 hover 的 track id
   const [clickedTrackId, setClickedTrackId] = useState(null); // 追蹤哪個按鈕被點了
 
-  
+
   // Function to fetch user profile - defined with useCallback to avoid dependency warnings
   const fetchUserProfile = useCallback(async (token) => {
     try {
@@ -528,7 +560,7 @@ export default function Home() {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const profile = await response.json();
         setUserData(profile);
@@ -548,7 +580,7 @@ export default function Home() {
   // Function to fetch top tracks - defined with useCallback
   const fetchTopTracks = useCallback(async () => {
     if (!accessToken) return;
-    
+
     setIsLoadingTracks(true);
     try {
       const response = await fetch('https://api.spotify.com/v1/me/top/tracks?time_range=medium_term&limit=5', {
@@ -556,7 +588,7 @@ export default function Home() {
           'Authorization': `Bearer ${accessToken}`,
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setTopTracks(data.items);
@@ -578,7 +610,7 @@ export default function Home() {
   const exchangeCodeForToken = useCallback(async (code) => {
     try {
       console.log('Exchanging code for token...');
-      
+
       const response = await fetch('/api/callback', {
         method: 'POST',
         headers: {
@@ -586,7 +618,7 @@ export default function Home() {
         },
         body: JSON.stringify({ code }),
       });
-      
+
       // Check if the response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
@@ -596,28 +628,28 @@ export default function Home() {
         setError('Server returned invalid response format');
         return;
       }
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         console.error('Token exchange error:', data);
         setError(data.error || 'Failed to authenticate with Spotify');
         return;
       }
-      
+
       if (data.access_token) {
         // Store token and expiry
         console.log('Token received successfully');
         localStorage.setItem('spotify_access_token', data.access_token);
-        
+
         // Set expiry 1 hour from now (or use expires_in from response)
         const expiryTime = Date.now() + (data.expires_in * 1000);
         localStorage.setItem('spotify_token_expiry', expiryTime.toString());
-        
+
         setAccessToken(data.access_token);
         setIsLoggedIn(true);
         fetchUserProfile(data.access_token);
-        
+
         // Clean up the URL
         window.history.replaceState({}, document.title, '/');
       } else {
@@ -646,80 +678,80 @@ export default function Home() {
     setAiInsights([]);
     setAudioFeaturesData(null);
   };
-  
-// Add this to your Home component's useEffect that handles the token
-// This should replace your current code that checks for a code in the URL
 
-useEffect(() => {
-  // First check for tokens directly in the URL (from the callback redirect)
-  const queryParams = new URLSearchParams(window.location.search);
-  const accessToken = queryParams.get('access_token');
-  const error = queryParams.get('error');
-  const tokenReceived = queryParams.get('token_received');
-  const code = queryParams.get('code');
-  
-  // Handle any errors from the auth process
-  if (error) {
-    setError(error.replace(/_/g, ' '));
-    // Clean up the URL
-    window.history.replaceState({}, document.title, '/');
-  }
-  
-  // If we received tokens directly in the URL
-  if (accessToken && tokenReceived === 'true') {
-    console.log('Token received directly in URL');
-    const expiresIn = parseInt(queryParams.get('expires_in') || '3600');
-    
-    // Store token and expiry
-    localStorage.setItem('spotify_access_token', accessToken);
-    const expiryTime = Date.now() + (expiresIn * 1000);
-    localStorage.setItem('spotify_token_expiry', expiryTime.toString());
-    
-    setAccessToken(accessToken);
-    setIsLoggedIn(true);
-    fetchUserProfile(accessToken);
-    
-    // Clean up the URL - remove tokens for security
-    window.history.replaceState({}, document.title, '/');
-    return;
-  }
-  
-  // If we have a code, exchange it for an access token
-  if (code) {
-    console.log('Code found in URL, exchanging for token');
-    exchangeCodeForToken(code);
-    return;
-  }
-  
-  // Check if we already have a valid token in localStorage
-  const storedToken = localStorage.getItem('spotify_access_token');
-  const tokenExpiry = localStorage.getItem('spotify_token_expiry');
-  
-  if (storedToken && tokenExpiry && Number(tokenExpiry) > Date.now()) {
-    console.log('Using stored token from localStorage');
-    setAccessToken(storedToken);
-    setIsLoggedIn(true);
-    fetchUserProfile(storedToken);
-  } else if (storedToken && tokenExpiry) {
-    // Token has expired, remove it
-    console.log('Stored token has expired');
-    localStorage.removeItem('spotify_access_token');
-    localStorage.removeItem('spotify_token_expiry');
-  }
-}, [exchangeCodeForToken, fetchUserProfile]);
-  
+  // Add this to your Home component's useEffect that handles the token
+  // This should replace your current code that checks for a code in the URL
+
+  useEffect(() => {
+    // First check for tokens directly in the URL (from the callback redirect)
+    const queryParams = new URLSearchParams(window.location.search);
+    const accessToken = queryParams.get('access_token');
+    const error = queryParams.get('error');
+    const tokenReceived = queryParams.get('token_received');
+    const code = queryParams.get('code');
+
+    // Handle any errors from the auth process
+    if (error) {
+      setError(error.replace(/_/g, ' '));
+      // Clean up the URL
+      window.history.replaceState({}, document.title, '/');
+    }
+
+    // If we received tokens directly in the URL
+    if (accessToken && tokenReceived === 'true') {
+      console.log('Token received directly in URL');
+      const expiresIn = parseInt(queryParams.get('expires_in') || '3600');
+
+      // Store token and expiry
+      localStorage.setItem('spotify_access_token', accessToken);
+      const expiryTime = Date.now() + (expiresIn * 1000);
+      localStorage.setItem('spotify_token_expiry', expiryTime.toString());
+
+      setAccessToken(accessToken);
+      setIsLoggedIn(true);
+      fetchUserProfile(accessToken);
+
+      // Clean up the URL - remove tokens for security
+      window.history.replaceState({}, document.title, '/');
+      return;
+    }
+
+    // If we have a code, exchange it for an access token
+    if (code) {
+      console.log('Code found in URL, exchanging for token');
+      exchangeCodeForToken(code);
+      return;
+    }
+
+    // Check if we already have a valid token in localStorage
+    const storedToken = localStorage.getItem('spotify_access_token');
+    const tokenExpiry = localStorage.getItem('spotify_token_expiry');
+
+    if (storedToken && tokenExpiry && Number(tokenExpiry) > Date.now()) {
+      console.log('Using stored token from localStorage');
+      setAccessToken(storedToken);
+      setIsLoggedIn(true);
+      fetchUserProfile(storedToken);
+    } else if (storedToken && tokenExpiry) {
+      // Token has expired, remove it
+      console.log('Stored token has expired');
+      localStorage.removeItem('spotify_access_token');
+      localStorage.removeItem('spotify_token_expiry');
+    }
+  }, [exchangeCodeForToken, fetchUserProfile]);
+
   // Fetch user's top tracks when accessToken changes
   useEffect(() => {
     if (accessToken) {
       fetchTopTracks();
     }
   }, [accessToken, fetchTopTracks]);
-  
+
   const handleLogin = () => {
     // Navigate programmatically to the login API route
     window.location.href = '/api/login';
   };
-  
+
   const toggleTrackDetails = (trackId) => {
     if (expandedTrackId === trackId) {
       setExpandedTrackId(null);
@@ -733,23 +765,23 @@ useEffect(() => {
       setError('Please connect to Spotify first');
       return;
     }
-    
+
     if (!prompt.trim()) {
       setError('Please enter a mood or vibe');
       return;
     }
-    
+
     setIsGenerating(true);
     setError('');
-    
+
     try {
       // Get the current token directly (this should be the most up-to-date)
       if (!accessToken) {
         throw new Error('No access token available. Please reconnect to Spotify.');
       }
-      
+
       console.log('Fetching recommendations with prompt:', prompt);
-      
+
       // First, get recommendations
       const recommendationResponse = await fetch('/api/recommendations', {
         method: 'POST',
@@ -760,15 +792,18 @@ useEffect(() => {
           prompt: prompt,
           token: accessToken,
           customStory: customMode ? customStory : '',
-          seedTracks: topTracks.map(track => track.id) // Use all top tracks as seeds for better matching
+          seedTracks: topTracks.map(track => track.id),
+          recommendationType: moodMode ? 'mood' : 'classic', // Add recommendationType parameter
+          outputFormat: playlistMode ? 'playlist' : 'track'  // Add outputFormat parameter
         }),
       });
-      
+
+
       console.log('Recommendation API response status:', recommendationResponse.status);
-      
+
       if (!recommendationResponse.ok) {
         let errorMessage = `Failed to generate recommendations: ${recommendationResponse.status} ${recommendationResponse.statusText}`;
-        
+
         try {
           // Try to parse the error as JSON first
           const errorData = await recommendationResponse.json();
@@ -785,23 +820,23 @@ useEffect(() => {
             console.error('Could not parse error response');
           }
         }
-        
+
         throw new Error(errorMessage);
       }
-      
+
       const recommendationData = await recommendationResponse.json();
-      
+
       if (!recommendationData.recommendations || recommendationData.recommendations.length === 0) {
         setError('No recommendations found. Try a different mood.');
         setIsGenerating(false);
         return;
       }
-      
+
       // Set initial recommendation state
       setAudioFeaturesData(recommendationData.audioFeatures || null);
       setRecommendations(recommendationData.recommendations || []);
       setRecommendationStory(recommendationData.story || '');
-      
+
       // Now, get AI insights for the recommendations
       try {
         const aiResponse = await fetch('/api/ai-recommendations', {
@@ -818,10 +853,10 @@ useEffect(() => {
             mood: recommendationData.mood || 'balanced'
           }),
         });
-        
+
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
-          
+
           // Use AI data to enhance recommendations
           if (aiData.story) setRecommendationStory(aiData.story);
           if (aiData.insightfulComments) setAiInsights(aiData.insightfulComments);
@@ -830,7 +865,7 @@ useEffect(() => {
         console.error('Error enhancing with AI:', aiError);
         // Continue with standard recommendations
       }
-      
+
       // Create playlist if needed
       if (playlistMode && recommendationData.recommendations && recommendationData.recommendations.length > 0) {
         try {
@@ -847,7 +882,7 @@ useEffect(() => {
               manualTracks: recommendationData.recommendations
             }),
           });
-          
+
           if (playlistResponse.ok) {
             const playlistData = await playlistResponse.json();
             if (playlistData.playlist) {
@@ -858,7 +893,7 @@ useEffect(() => {
           console.error('Error creating playlist:', playlistError);
         }
       }
-      
+
     } catch (error) {
       console.error('Error generating recommendations:', error);
       setError(error.message || 'Failed to generate recommendations');
@@ -878,7 +913,7 @@ useEffect(() => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ artist, song,customStory: customStory ? customStory : ''}),
+        body: JSON.stringify({ artist, song, customStory: customStory ? customStory : '' }),
       });
 
       if (!response.ok) {
@@ -916,15 +951,15 @@ useEffect(() => {
     <div style={styles.container}>
       <nav style={styles.navbar}>
         <div style={styles.logoContainer}>
-          <Image 
-            src="/logo.png" 
-            alt="Moodify Logo" 
-            width={40} 
-            height={40} 
+          <Image
+            src="/logo.png"
+            alt="Moodify Logo"
+            width={40}
+            height={40}
           />
           <h1 style={styles.logoText}>Moodify</h1>
         </div>
-        
+
         <div style={styles.navRight}>
           {isLoggedIn && userData ? (
             <div style={styles.userProfile}>
@@ -932,11 +967,11 @@ useEffect(() => {
                 {userData.display_name}
               </span>
               {userData.images && userData.images.length > 0 ? (
-                <Image 
-                  src={userData.images[0].url} 
-                  alt="User Avatar" 
-                  width={32} 
-                  height={32} 
+                <Image
+                  src={userData.images[0].url}
+                  alt="User Avatar"
+                  width={32}
+                  height={32}
                   style={styles.userAvatar}
                   unoptimized={true} // Add this line to bypass image optimization
                 />
@@ -955,7 +990,7 @@ useEffect(() => {
                   {userData.display_name ? userData.display_name[0].toUpperCase() : 'U'}
                 </div>
               )}
-              <button 
+              <button
                 onClick={handleLogout}
                 style={{
                   backgroundColor: 'transparent',
@@ -972,7 +1007,7 @@ useEffect(() => {
               </button>
             </div>
           ) : (
-            <button 
+            <button
               style={styles.spotifyButton}
               onClick={handleLogin}
             >
@@ -981,13 +1016,13 @@ useEffect(() => {
           )}
         </div>
       </nav>
-      
+
       <main style={styles.main}>
         <h1 style={styles.title}>Generate Music Based on Your Mood</h1>
         <p style={styles.description}>
           Describe how you&apos;re feeling or what vibe you&apos;re looking for, and we&apos;ll create the perfect playlist
         </p>
-        
+
         {error && (
           <p style={styles.error}>Error: {error}</p>
         )}
@@ -996,31 +1031,31 @@ useEffect(() => {
           <h2 style={styles.sectionTitle}>Settings</h2>
           <div style={styles.switchesContainer}>
             <div style={styles.switchRow}>
-              <ToggleSwitch 
-                isOn={moodMode} 
-                label="Recommendation Type" 
+              <ToggleSwitch
+                isOn={moodMode}
+                label="Recommendation Type"
                 leftText="Classic"
                 rightText="Mood"
-                onToggle={() => setMoodMode(!moodMode)} 
+                onToggle={() => setMoodMode(!moodMode)}
               />
-              <ToggleSwitch 
-                isOn={playlistMode} 
-                label="Output Format" 
+              <ToggleSwitch
+                isOn={playlistMode}
+                label="Output Format"
                 leftText="Track"
                 rightText="Playlist"
-                onToggle={() => setPlaylistMode(!playlistMode)} 
+                onToggle={() => setPlaylistMode(!playlistMode)}
               />
             </div>
-            
+
             <div style={styles.switchRow}>
-              <ToggleSwitch 
-                isOn={customMode} 
-                label="Story Style" 
+              <ToggleSwitch
+                isOn={customMode}
+                label="Story Style"
                 leftText="Classic"
                 rightText="Custom"
-                onToggle={() => setCustomMode(!customMode)} 
+                onToggle={() => setCustomMode(!customMode)}
               />
-              
+
               {customMode && (
                 <div style={{ marginTop: '0.75rem' }}>
                   <input
@@ -1042,7 +1077,7 @@ useEffect(() => {
           </div>
         </div>
 
-      
+
 
         <div style={styles.inputContainer}>
           <label style={styles.promptLabel} htmlFor="mood-prompt">
@@ -1061,7 +1096,7 @@ useEffect(() => {
               ...(inputFocused ? styles.promptInputFocus : {})
             }}
           />
-          
+
           <button
             onClick={generateRecommendations}
             disabled={!isLoggedIn || !prompt || isGenerating}
@@ -1076,12 +1111,12 @@ useEffect(() => {
             {isGenerating ? 'Generating...' : 'Generate Recommendations'}
           </button>
         </div>
-        
+
         {/* Display top tracks section if logged in */}
         {isLoggedIn && (
           <div style={styles.topTracksSection}>
             <h2 style={styles.sectionTitle}>Your Top Tracks</h2>
-            
+
             {isLoadingTracks ? (
               <p style={styles.loadingIndicator}>Loading your top tracks...</p>
             ) : topTracks.length > 0 ? (
@@ -1112,7 +1147,7 @@ useEffect(() => {
                     </div>
                     <button
                       key={track.id}
-                      onClick={() =>{
+                      onClick={() => {
                         setClickedTrackId(track.id); // 設定目前點到的track id
                         setIsLoading(true);
                         handleTrackClick(
@@ -1120,7 +1155,7 @@ useEffect(() => {
                           track.artists[0].name,
                           track.name
                         );
-                    }}
+                      }}
                       style={{
                         ...styles.button,
                         ...(isLoading ? styles.buttonDisabled : {}),
@@ -1142,47 +1177,47 @@ useEffect(() => {
           </div>
         )}
         {isModalOpen && (
-        <StoryModal
-          story={story}
-          trackId={trackId}
-          onClose={() => {
-            setIsModalOpen(false);
-            setStory(null);
-            setTrackId(null);
-          }}
-        />
-      )}
+          <StoryModal
+            story={story}
+            trackId={trackId}
+            onClose={() => {
+              setIsModalOpen(false);
+              setStory(null);
+              setTrackId(null);
+            }}
+          />
+        )}
         {/* Display recommendations if available */}
         {recommendations.length > 0 && (
           <div style={styles.recommendationsSection}>
             <h2 style={styles.sectionTitle}>Your Personalized Recommendations</h2>
-            
+
             {/* Display audio features target for the mood */}
             {audioFeaturesData && (
               <div style={styles.moodFeatures}>
-                <h3 style={{fontSize: '1rem', marginBottom: '0.5rem'}}>Target Audio Profile</h3>
+                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Target Audio Profile</h3>
                 <AudioFeaturesDisplay features={audioFeaturesData} />
               </div>
             )}
-            
+
             {recommendationStory && (
               <div style={styles.storyText}>
                 {recommendationStory}
               </div>
             )}
-            
+
             <ul style={styles.recommendationsList}>
               {recommendations.map((track, index) => (
-                 <li
-                 key={track.id}
-                 style={{
-                   ...styles.trackItem,
-                 }}
-               >
+                <li
+                  key={track.id}
+                  style={{
+                    ...styles.trackItem,
+                  }}
+                >
                   <span style={styles.trackNumber}>{index + 1}</span>
                   {track.album.images && track.album.images.length > 0 && (
-                    <Image 
-                      src={track.album.images[2].url} 
+                    <Image
+                      src={track.album.images[2].url}
                       alt={track.album.name}
                       width={40}
                       height={40}
@@ -1193,7 +1228,7 @@ useEffect(() => {
                   <div style={styles.trackInfo}>
                     <div style={styles.trackName}>
                       {track.name}
-                      <button 
+                      <button
                         onClick={() => toggleTrackDetails(track.id)}
                         style={styles.detailsButton}
                       >
@@ -1203,9 +1238,9 @@ useEffect(() => {
                     <div style={styles.trackArtist}>
                       {track.artists.map(artist => artist.name).join(', ')}
                     </div>
-                    
+
                     {/* Track details section with audio features */}
-                    <div 
+                    <div
                       style={{
                         ...styles.trackDetails,
                         ...(expandedTrackId === track.id ? styles.trackDetailsOpen : {})
@@ -1214,19 +1249,19 @@ useEffect(() => {
                       {track.audioFeatures && (
                         <AudioFeaturesDisplay features={track.audioFeatures} />
                       )}
-                      
+
                       {/* Lyrics sentiment (if available) */}
                       {track.lyricsInfo && (
-                        <div style={{marginTop: '0.5rem'}}>
-                          <div style={{fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem'}}>
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem' }}>
                             Lyrics Sentiment
                           </div>
                           <div style={{
                             padding: '0.3rem 0.6rem',
                             borderRadius: '4px',
                             display: 'inline-block',
-                            backgroundColor: track.lyricsInfo.sentiment === 'positive' 
-                              ? 'rgba(29, 185, 84, 0.2)' 
+                            backgroundColor: track.lyricsInfo.sentiment === 'positive'
+                              ? 'rgba(29, 185, 84, 0.2)'
                               : 'rgba(255, 85, 85, 0.2)',
                             color: track.lyricsInfo.sentiment === 'positive'
                               ? '#1DB954'
@@ -1235,13 +1270,13 @@ useEffect(() => {
                           }}>
                             {track.lyricsInfo.sentiment.charAt(0).toUpperCase() + track.lyricsInfo.sentiment.slice(1)}
                           </div>
-                          
+
                           {track.lyricsInfo.themes && track.lyricsInfo.themes.length > 0 && (
-                            <div style={{marginTop: '0.5rem'}}>
-                              <div style={{fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem'}}>
+                            <div style={{ marginTop: '0.5rem' }}>
+                              <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem' }}>
                                 Themes
                               </div>
-                              <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.3rem'}}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                                 {track.lyricsInfo.themes.map((theme, i) => (
                                   <span key={i} style={{
                                     padding: '0.2rem 0.5rem',
@@ -1257,12 +1292,12 @@ useEffect(() => {
                           )}
                         </div>
                       )}
-                      
+
                       {/* Spotify player link */}
-                      <div style={{marginTop: '0.5rem', textAlign: 'right'}}>
-                        <a 
-                          href={track.external_urls.spotify} 
-                          target="_blank" 
+                      <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
+                        <a
+                          href={track.external_urls.spotify}
+                          target="_blank"
                           rel="noopener noreferrer"
                           style={{
                             color: '#1DB954',
@@ -1275,20 +1310,23 @@ useEffect(() => {
                       </div>
                     </div>
                   </div>
-                  <button
-                      key={track.id}
-                      onClick={() =>{
-                        setClickedTrackId(track.id); // 設定目前點到的track id
+
+                  {/* Track buttons container */}
+                  <div style={styles.trackButtonsContainer}>
+                    {/* Story generation button */}
+                    <button
+                      onClick={() => {
+                        setClickedTrackId(track.id);
                         setIsLoading(true);
                         handleTrackClick(
                           track.id,
                           track.artists[0].name,
                           track.name
                         );
-                    }}
+                      }}
                       style={{
                         ...styles.button,
-                        ...(isLoading ? styles.buttonDisabled : {}),
+                        ...(isLoading && clickedTrackId === track.id ? styles.buttonDisabled : {}),
                         ...(hoveredTrackId === track.id ? styles.trackItemHover : {})
                       }}
                       onMouseEnter={() => setHoveredTrackId(track.id)}
@@ -1296,8 +1334,29 @@ useEffect(() => {
                       disabled={isLoading && clickedTrackId === track.id}
                       aria-label="生成歌曲故事"
                     >
-                      {isLoading ? '生成中...' : '生成故事'}
+                      {isLoading && clickedTrackId === track.id ? '生成中...' : '生成故事'}
                     </button>
+
+                    {/* New Spotify Listen button */}
+                    <a
+                      href={track.external_urls.spotify}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.spotifyListenButton}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#1aa34a';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(29, 185, 84, 0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#1DB954';
+                        e.currentTarget.style.transform = 'none';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      Listen on Spotify
+                    </a>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -1317,21 +1376,44 @@ useEffect(() => {
                 </ul>
               </div>
             )}
-            
+
             {generatedPlaylist && (
               <div style={styles.playlistInfo}>
                 <div style={styles.playlistTitle}>
                   Playlist Created: {generatedPlaylist.name}
                 </div>
                 <p>{generatedPlaylist.description}</p>
-                <a 
-                  href={generatedPlaylist.external_urls.spotify} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={styles.playlistLink}
-                >
-                  Open in Spotify
-                </a>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                  <a
+                    href={generatedPlaylist.external_urls.spotify}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.playlistLink}
+                  >
+                    Open in Spotify
+                  </a>
+                  <a
+                    href={generatedPlaylist.external_urls.spotify}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      ...styles.spotifyListenButton,
+                      marginLeft: 0
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1aa34a';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(29, 185, 84, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1DB954';
+                      e.currentTarget.style.transform = 'none';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    Listen to Playlist
+                  </a>
+                </div>
               </div>
             )}
           </div>
