@@ -31,40 +31,47 @@ export async function evaluateTrackAlignment(tracks, prompt, mood) {
     for (const chunk of chunks) {
       try {
         const response = await openai.chat.completions.create({
-          model: "gpt-4.1-mini",
-          messages: [
-            {
-              role: "system",
-              content: `You are a music expert evaluating how well songs match a user's mood and prompt.
-              Consider:
-              1. Song title, artist, and known musical style
-              2. Audio features (if provided): tempo, energy, valence, danceability, etc.
-              3. Genre and mood data from audio analysis
-              4. Overall fit with the user's request
-              
-              Be more lenient - a song should score 7+ if it has ANY reasonable connection to the mood/prompt.
-              For "happy songs", consider upbeat pop, dance, feel-good rock, positive indie, etc.
-              
-              Rate each song on a scale of 1-10 for alignment.
-              Return ONLY a JSON object with:
+            model: "gpt-4.1-mini",
+            messages: [
               {
-                "evaluations": [
-                  {"id": "track_id", "score": 8, "reason": "brief explanation"},
-                  ...
-                ]
-              }`
-            },
-            {
-              role: "user",
-              content: `User prompt: "${prompt}"
-              Target mood: "${mood}"
-              
-              Evaluate these tracks (be generous with scoring if they reasonably fit):
-              ${JSON.stringify(chunk, null, 2)}`
-            }
-          ],
-          temperature: 0.2, // Lower temperature for more consistent scoring
-        });
+                role: "system",
+                content: `
+          You are a music expert evaluating how well a set of songs matches a user's intended mood, based on title, artist, and musical/lyrical qualities.
+          
+          Instructions:
+          1. For each track, assess its alignment with the user’s described mood and prompt.
+          2. Consider:
+             - Known genre or artist style
+             - Audio features (if available): tempo, energy, valence, danceability
+             - Lyrical themes or vibe (if known)
+             - General emotional tone and instrumentation
+          3. Use a **1–10 scale** for alignment (10 = perfect fit, 7+ = reasonable match).
+          
+          Be generous: a score of 7+ means the song has any meaningful connection to the user's mood, even if indirect. For example:
+          - Happy moods → upbeat pop, dance, funk, sunshine indie, warm acoustic rock
+          - Chill moods → lo-fi, soft jazz, ambient, mellow R&B
+          - Sad moods → slow ballads, introspective lyrics, low valence tracks
+          
+          Return only a JSON object with:
+          {
+            "evaluations": [
+              { "id": "track_id", "score": 8, "reason": "brief reason for fit (mention genre, lyrics, or vibe)" },
+              ...
+            ]
+          }
+          `
+              },
+              {
+                role: "user",
+                content: `User prompt: "${prompt}"
+          Target mood: "${mood}"
+          
+          Evaluate these tracks generously based on alignment:
+          ${JSON.stringify(chunk, null, 2)}`
+              }
+            ],
+            temperature: 0.2,
+          });
 
         const content = response.choices[0]?.message?.content || "";
         

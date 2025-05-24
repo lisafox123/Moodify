@@ -9,20 +9,30 @@ export async function analyzeMood(prompt) {
     console.log("Analyzing mood for prompt:", prompt);
     
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are a music expert who can analyze mood descriptions. Output ONLY a simple JSON with one property "mood" which should be a single word like: energetic, calm, melancholy, upbeat, sad, happy, focused, relaxed, party, romantic, balanced, etc.`
-        },
-        {
-          role: "user",
-          content: `What mood best describes this: "${prompt}"`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 50
-    });
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: `You are a music expert categorizing moods for playlists.
+      Your goal is to interpret the user's mood description and reduce it to **one standard keyword** for mood classification.
+      
+      Think carefully about the emotional intent of the phrase.
+      
+      Valid moods include (but are not limited to): energetic, calm, melancholy, upbeat, sad, happy, focused, relaxed, party, romantic, nostalgic, balanced, chill, dark.
+      
+      Output ONLY a JSON like:
+      {"mood": "happy"}
+      
+      Never explain your answer. Return only the JSON.`
+          },
+          {
+            role: "user",
+            content: `What mood best describes this: "${prompt}"`
+          }
+        ],
+        temperature: 0.2, // Lower for consistency
+        max_tokens: 50
+      });
 
     const content = response.choices[0]?.message?.content || "";
     

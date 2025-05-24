@@ -32,35 +32,40 @@ export async function analyzeTracksWithAI(tracks, prompt, mood, targetCount = 40
 
       try {
         const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: `You are a music expert analyzing songs for mood matching. 
-              Analyze each song and determine if it matches the user's prompt and mood based on:
-              1. Song title and artist knowledge
-              2. Musical style and genre associations
-              3. Lyrical themes (if known)
-              4. Overall vibe and emotional content
-              
-              Return ONLY a JSON object with:
-              - "selected": array of track IDs that strongly match (aim for ${Math.min(targetCount - selectedTracks.length, 20)} selections)
-              - "reasons": object with track ID as key and brief reason as value
-              
-              Be selective - only choose songs that genuinely fit the mood/prompt.`
-            },
-            {
-              role: "user",
-              content: `User prompt: "${prompt}"
-              Target mood: "${mood}"
-              
-              Analyze these tracks and select those that best match:
-              ${JSON.stringify(chunk, null, 2)}`
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 1500
-        });
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: `
+          You are a team of music curation experts: a musicologist, a lyric analyst, and a sound designer. Together, you evaluate whether tracks from a user's library match a target mood described by a prompt.
+          
+          Your task:
+          - Analyze each track using knowledge of the artist, genre, lyrics, and emotional tone.
+          - Determine if the track fits the described mood and user intent.
+          - Prioritize alignment in terms of emotional content, lyrical themes, genre, tempo, instrumentation, and historical/cultural associations.
+          - Think step-by-step for each track and only include tracks that truly fit.
+          
+          Return ONLY a valid JSON object with:
+          - "selected": an array of track IDs (max ${Math.min(targetCount - selectedTracks.length, 20)}) that strongly align with the prompt and mood.
+          - "reasons": an object where each selected track ID maps to a concise explanation of why it fits the mood (e.g., emotional tone, lyrics, genre, etc.)
+          
+          Do NOT include tracks that are neutral or uncertain. Be selective. Only tracks that strongly support the mood should be chosen.
+                `
+              },
+              {
+                role: "user",
+                content: `
+          User prompt: "${prompt}"
+          Target mood: "${mood}"
+          
+          Analyze these tracks and select those that best match:
+          ${JSON.stringify(chunk, null, 2)}
+                `
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 1500
+          });
 
         const content = response.choices[0]?.message?.content || "";
         

@@ -26,16 +26,19 @@ export function shuffleArray(array) {
       let aiPrompt = "";
       
       if (customStory) {
-        aiPrompt = `Based on this custom theme: "${customStory}", write a short paragraph that connects these songs into a cohesive playlist narrative.`;
+        aiPrompt = `The user has requested a custom theme: "${customStory}". Write a vivid, emotional paragraph that connects these songs into a cohesive playlist narrative. Use warm, descriptive language.`;
       } else if (recommendationType === "classic") {
-        aiPrompt = `Write a short, engaging paragraph about how this collection of classic songs matches the theme: "${prompt}".`;
+        aiPrompt = `Write a short but emotionally rich paragraph explaining how this set of classic songs captures the theme: "${prompt}". Mention musical eras, iconic artists, or historical relevance where possible.`;
       } else if (outputFormat === "track") {
-        aiPrompt = `Write a short, engaging paragraph about why this song perfectly matches the mood: "${prompt}".`;
+        aiPrompt = `Write a short, personal paragraph explaining why this single song fits the user's mood: "${prompt}". Reflect on lyrics, emotional tone, or vibe that makes it stand out.`;
       } else {
-        aiPrompt = `Write a short, engaging paragraph about how this playlist matches the mood: "${prompt}".`;
+        aiPrompt = `Write a personal and concise paragraph about how this playlist aligns with the user's mood: "${prompt}". Mention emotional connections, genres, or lyrical themes where relevant.`;
       }
       
-      aiPrompt += ` Here are the songs: ${JSON.stringify(tracksInfo)}. Keep it concise and personal.`;
+      // Add shared ending (prompt engineering power tip)
+      aiPrompt += ` 
+      Here are the songs: ${JSON.stringify(tracksInfo)}.
+      Use a warm, creative tone. Make it feel like a human recommendation. Avoid generic language like "great songs" or "you'll love it." Focus on connection, mood, and storytelling. Keep it under 150 words.`;
   
       const aiResponse = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
