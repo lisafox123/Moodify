@@ -1,243 +1,540 @@
 import OpenAI from "openai";
+import fetch from "node-fetch";
+import { load } from 'cheerio';
 import { fetchFromSpotify } from './spotifyHelpers.js';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const SERPAPI_KEY = process.env.SERPAPI_KEY;
+
+// MAIN ENHANCED FUNCTION
 export async function generateClassicRecommendations(prompt, token) {
   try {
-    console.log("Generating classic recommendations for prompt:", prompt);
-    
-    // Step 1: Web crawler simulation + AI analysis
-    const webSearchResults = await simulateWebCrawler(prompt);
-    
-    // Step 2: Use AI to answer user's prompt with classic songs
-    const aiRecommendations = await getAIClassicRecommendations(prompt);
-    
-    // Step 3: Combine and refine results
-    const combinedRecommendations = await combineAndRefineResults(
-      webSearchResults, 
-      aiRecommendations, 
-      prompt
+    console.log("=== ENHANCED CLASSIC RECOMMENDATION WORKFLOW ===");
+    console.log("Original prompt:", prompt);
+
+    // Step 1: Analyze user's prompt and generate refined search queries
+    const analysisResult = await analyzeUserPrompt(prompt);
+    console.log("Prompt analysis completed:", analysisResult);
+
+    // Step 2: Search Google using SerpAPI with refined queries
+    const webResults = await searchWithSerpAPI(analysisResult.searchQueries);
+    console.log(`Web search completed: ${webResults.length} results`);
+
+    // Step 3: Generate AI recommendations using refined prompt
+    const aiResults = await generateAIRecommendations(analysisResult.refinedPrompt, analysisResult.constraints);
+    console.log(`AI generation completed: ${aiResults.length} results`);
+
+    // Step 4: Combine results and verify alignment using semantic similarity
+    const alignedSongs = await combineAndVerifyAlignment(
+      webResults, 
+      aiResults, 
+      prompt, 
+      analysisResult.originalEmbedding,
+      analysisResult.constraints
+    );
+    console.log(`Alignment verification completed: ${alignedSongs.length} aligned songs`);
+
+    if (alignedSongs.length < analysisResult.constraints.minCount) {
+      throw new Error(`Not enough quality results: found ${alignedSongs.length}, need ${analysisResult.constraints.minCount}`);
+    }
+
+    // Step 5: Search on Spotify and create final playlist
+    const spotifyTracks = await searchTracksOnSpotify(
+      alignedSongs.slice(0, Math.max(analysisResult.constraints.targetCount, 20)), 
+      token
     );
     
-    // Step 4: Search for tracks on Spotify
-    const spotifyTracks = await searchTracksOnSpotify(combinedRecommendations, token);
-    
-    console.log(`Generated ${spotifyTracks.length} classic recommendations`);
+    console.log(`Final playlist created: ${spotifyTracks.length} tracks`);
     return spotifyTracks;
 
-  } catch (error) {
-    console.error('Error generating classic recommendations:', error);
+  } catch (err) {
+    console.error("Enhanced workflow failed:", err.message);
     return [];
   }
 }
 
-async function simulateWebCrawler(prompt) {
+// STEP 1: ANALYZE USER PROMPT WITH ADVANCED PROMPT ENGINEERING
+async function analyzeUserPrompt(prompt) {
   try {
-    console.log("Simulating web crawler for classic songs...");
-    
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: `You are simulating a web crawler that searches for classic songs. 
-          Based on the search query, return information about classic/timeless songs that match.
-          Return ONLY a JSON array with objects containing:
-          - "title": song title
-          - "artist": artist name  
-          - "year": release year (if known)
-          - "genre": genre
-          - "reason": why it matches the search
-          
-          Focus on well-known, timeless songs from various decades.`
+          content: `You are an expert music analyst and search query optimizer. Your task is to:
+1. Extract key musical elements (genre, mood, era, artist, themes)
+2. Identify specific constraints (count, decade, style preferences)
+3. Generate optimized search queries for finding classic songs
+4. Create a refined prompt for AI song generation
+
+Return a JSON object with:
+- originalIntent: Brief summary of user's request
+- musicalElements: Array of key elements (genre, mood, era, themes)
+- constraints: Object with {targetCount, minCount, decade, specificArtist, mood}
+- searchQueries: Array of 3-5 optimized Google search queries
+- refinedPrompt: Enhanced prompt for AI generation
+- semanticKeywords: Array of keywords for similarity matching`
         },
         {
           role: "user",
-          content: `Search for classic songs related to: "${prompt}"`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 1500
-    });
-
-    const content = response.choices[0]?.message?.content || "";
-    
-    try {
-      const jsonStr = content.replace(/```json|```/g, '').trim();
-      const results = JSON.parse(jsonStr);
-      
-      console.log(`Web crawler simulation found ${results.length} classic songs`);
-      return Array.isArray(results) ? results : [];
-    } catch (parseError) {
-      console.error('Failed to parse web crawler results:', parseError);
-      return [];
-    }
-  } catch (error) {
-    console.error('Error in web crawler simulation:', error);
-    return [];
-  }
-}
-
-async function getAIClassicRecommendations(prompt) {
-  try {
-    console.log("Getting AI classic song recommendations...");
-    
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are a music expert with deep knowledge of classic and timeless songs.
-          Recommend classic songs that perfectly match the user's request.
-          Return ONLY a JSON array with objects containing:
-          - "title": song title
-          - "artist": artist name
-          - "year": release year (if known)
-          - "genre": genre
-          - "significance": why this song is considered classic
-          - "match_reason": why it fits the user's request
-          
-          Focus on songs that are widely recognized as classics or have stood the test of time.`
-        },
-        {
-          role: "user",
-          content: `Recommend classic songs for: "${prompt}"`
-        }
-      ],
-      temperature: 0.6,
-      max_tokens: 1500
-    });
-
-    const content = response.choices[0]?.message?.content || "";
-    
-    try {
-      const jsonStr = content.replace(/```json|```/g, '').trim();
-      const results = JSON.parse(jsonStr);
-      
-      console.log(`AI recommended ${results.length} classic songs`);
-      return Array.isArray(results) ? results : [];
-    } catch (parseError) {
-      console.error('Failed to parse AI classic recommendations:', parseError);
-      return [];
-    }
-  } catch (error) {
-    console.error('Error getting AI classic recommendations:', error);
-    return [];
-  }
-}
-
-async function combineAndRefineResults(webResults, aiResults, prompt) {
-  try {
-    console.log("Combining and refining classic song results...");
-    
-    // Combine all results
-    const allResults = [...webResults, ...aiResults];
-    
-    // Remove duplicates based on title and artist
-    const uniqueResults = [];
-    const seen = new Set();
-    
-    for (const song of allResults) {
-      const key = `${song.title?.toLowerCase().trim()}-${song.artist?.toLowerCase().trim()}`;
-      if (!seen.has(key) && song.title && song.artist) {
-        uniqueResults.push(song);
-        seen.add(key);
-      }
-    }
-    
-    // Use AI to refine and select the best matches
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are a music curator selecting the best classic songs for a specific request.
-          From the provided list, select the songs that best match the user's prompt.
-          Remove any songs that don't fit well or seem inappropriate.
-          Return ONLY a JSON array with the selected songs, keeping the same format.
-          Aim for 15-20 of the best matches.`
-        },
-        {
-          role: "user",
-          content: `User request: "${prompt}"
-          
-          Select the best classic songs from this list:
-          ${JSON.stringify(uniqueResults, null, 2)}`
+          content: `Analyze this music request and optimize it for search: "${prompt}"`
         }
       ],
       temperature: 0.3,
-      max_tokens: 2000
+      max_tokens: 1000,
     });
 
     const content = response.choices[0]?.message?.content || "";
+    const jsonStr = content.replace(/```json|```/g, '').trim();
+    const analysis = JSON.parse(jsonStr);
+
+    // Generate embedding for semantic similarity
+    const embeddingResponse = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: `${prompt} ${analysis.semanticKeywords?.join(' ') || ''}`,
+    });
+
+    return {
+      ...analysis,
+      originalEmbedding: embeddingResponse.data[0].embedding
+    };
+
+  } catch (err) {
+    console.error("Prompt analysis failed:", err.message);
     
-    try {
-      const jsonStr = content.replace(/```json|```/g, '').trim();
-      const refinedResults = JSON.parse(jsonStr);
-      
-      console.log(`Refined to ${refinedResults.length} best classic song matches`);
-      return Array.isArray(refinedResults) ? refinedResults : uniqueResults;
-    } catch (parseError) {
-      console.error('Failed to parse refined results:', parseError);
-      return uniqueResults;
-    }
-  } catch (error) {
-    console.error('Error combining and refining results:', error);
-    return [...webResults, ...aiResults];
+    // Fallback analysis
+    const fallbackCount = extractNumberFromPrompt(prompt) || 10;
+    return {
+      originalIntent: prompt,
+      musicalElements: ["classic", "popular"],
+      constraints: { 
+        targetCount: fallbackCount, 
+        minCount: Math.min(fallbackCount, 5),
+        decade: null,
+        specificArtist: null,
+        mood: "balanced"
+      },
+      searchQueries: [`"${prompt}" classic songs`, `${prompt} greatest hits`],
+      refinedPrompt: `Find classic and timeless songs that match: ${prompt}`,
+      semanticKeywords: prompt.split(' '),
+      originalEmbedding: null
+    };
   }
 }
 
-async function searchTracksOnSpotify(songRecommendations, token) {
+// STEP 2: ENHANCED WEB SEARCH WITH SERPAPI
+async function searchWithSerpAPI(searchQueries) {
+  if (!SERPAPI_KEY) {
+    console.warn("SerpAPI key not found, falling back to basic web crawler");
+    return await basicWebCrawler(searchQueries[0] || "classic songs");
+  }
+
   try {
-    console.log(`Searching for ${songRecommendations.length} classic songs on Spotify`);
+    const allResults = [];
     
-    const spotifyTracks = [];
-    
-    for (const song of songRecommendations) {
-      try {
-        // Create search query
-        const query = `track:"${song.title}" artist:"${song.artist}"`;
-        const encodedQuery = encodeURIComponent(query);
-        
-        const searchResponse = await fetchFromSpotify(
-          `https://api.spotify.com/v1/search?q=${encodedQuery}&type=track&limit=1`,
-          token
-        );
-        
-        if (searchResponse?.tracks?.items?.length > 0) {
-          const track = searchResponse.tracks.items[0];
-          
-          // Add classic song metadata
-          track.classicMetadata = {
-            year: song.year,
-            genre: song.genre,
-            significance: song.significance,
-            match_reason: song.match_reason,
-            reason: song.reason
-          };
-          
-          spotifyTracks.push(track);
-          console.log(`Found: ${track.name} by ${track.artists[0]?.name}`);
-        } else {
-          console.log(`Not found on Spotify: ${song.title} by ${song.artist}`);
-        }
-        
-        // Add delay to respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-      } catch (error) {
-        console.error(`Error searching for ${song.title}:`, error);
-      }
+    for (const query of searchQueries) {
+      console.log(`Searching: ${query}`);
+      
+      const response = await fetch(`https://serpapi.com/search.json?` + new URLSearchParams({
+        q: query,
+        engine: 'google',
+        api_key: SERPAPI_KEY,
+        num: 10
+      }));
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      const results = extractSongsFromSerpResults(data, query);
+      allResults.push(...results);
+      
+      // Rate limiting
+      await new Promise(r => setTimeout(r, 1000));
     }
+
+    return removeDuplicateSongs(allResults);
+
+  } catch (err) {
+    console.error("SerpAPI search failed:", err.message);
+    return await basicWebCrawler(searchQueries[0] || "classic songs");
+  }
+}
+
+function extractSongsFromSerpResults(data, originalQuery) {
+  const songs = [];
+  
+  // Extract from organic results
+  data.organic_results?.forEach(result => {
+    const title = result.title || '';
+    const snippet = result.snippet || '';
     
-    console.log(`Successfully found ${spotifyTracks.length} classic tracks on Spotify`);
-    return spotifyTracks;
+    // Pattern matching for song titles
+    const patterns = [
+      /[""](.+?)[""] by (.+?)(?:\s|$|,|\.|;)/gi,
+      /(.+?) - (.+?)(?:\s|$|,|\.|;)/gi,
+      /(.+?) by (.+?)(?:\s|$|,|\.|;)/gi,
+    ];
+
+    patterns.forEach(pattern => {
+      let match;
+      const text = `${title} ${snippet}`;
+      while ((match = pattern.exec(text)) !== null) {
+        if (match[1] && match[2]) {
+          songs.push({
+            title: match[1].trim(),
+            artist: match[2].trim(),
+            source: 'serp_organic',
+            sourceUrl: result.link,
+            reason: `Found via Google search: "${originalQuery}"`,
+            year: extractYear(text),
+            genre: "Classic"
+          });
+        }
+      }
+    });
+  });
+
+  // Extract from knowledge graph if available
+  if (data.knowledge_graph?.songs) {
+    data.knowledge_graph.songs.forEach(song => {
+      songs.push({
+        title: song.name,
+        artist: song.artists?.[0] || "Unknown",
+        source: 'knowledge_graph',
+        reason: `From Google Knowledge Graph`,
+        year: song.year,
+        genre: "Classic"
+      });
+    });
+  }
+
+  return songs;
+}
+
+// STEP 3: ENHANCED AI GENERATION WITH BETTER PROMPTING
+async function generateAIRecommendations(refinedPrompt, constraints) {
+  try {
+    const systemPrompt = `You are a world-renowned music curator and historian with deep knowledge of classic songs across all genres and decades. 
+
+Your expertise includes:
+- Billboard charts history from 1940s-present
+- Critical acclaim and cultural impact
+- Cross-genre influences and evolution
+- Artist discographies and career highlights
+
+Task: Generate ${constraints.targetCount || 15} classic songs that perfectly match the refined request.
+
+Requirements:
+- Each song must be genuinely classic/significant (not just popular)
+- Provide accurate release years (1940-2010 preferred for "classic" designation)
+- Include specific reasons why each song matches the request
+- Ensure diversity in artists (max 2 songs per artist unless specifically requested)
+- Consider cultural significance and lasting impact
+
+Return as JSON array with: title, artist, year, genre, significance, match_reason, cultural_impact_score (1-10)`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { 
+          role: "user", 
+          content: `Generate classic songs for: "${refinedPrompt}"
+          
+Additional constraints:
+- Target count: ${constraints.targetCount || 15}
+- Decade preference: ${constraints.decade || 'any classic era'}
+- Specific artist: ${constraints.specificArtist || 'diverse artists'}
+- Mood/theme: ${constraints.mood || 'balanced'}
+          
+Focus on timeless classics that have stood the test of time.` 
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2500,
+    });
+
+    const content = response.choices[0]?.message?.content || "";
+    const jsonStr = content.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(jsonStr);
     
-  } catch (error) {
-    console.error('Error searching tracks on Spotify:', error);
+    return Array.isArray(parsed) ? parsed.map(song => ({
+      ...song,
+      source: 'ai_generation'
+    })) : [];
+
+  } catch (err) {
+    console.error("AI generation failed:", err.message);
     return [];
   }
+}
+
+// STEP 4: SEMANTIC SIMILARITY VERIFICATION AND ALIGNMENT
+async function combineAndVerifyAlignment(webResults, aiResults, originalPrompt, originalEmbedding, constraints) {
+  try {
+    // Combine and deduplicate
+    const allSongs = removeDuplicateSongs([...webResults, ...aiResults]);
+    
+    if (allSongs.length === 0) return [];
+
+    // Generate embeddings for each song if we have the original embedding
+    let rankedSongs = allSongs;
+    
+    if (originalEmbedding) {
+      console.log("Calculating semantic similarity...");
+      rankedSongs = await rankSongsBySementicSimilarity(allSongs, originalEmbedding, originalPrompt);
+    }
+
+    // Use AI to verify alignment and filter inappropriate songs
+    const verificationPrompt = `You are a music quality controller. Your task is to:
+
+1. Verify each song genuinely matches the original request: "${originalPrompt}"
+2. Eliminate songs that are inappropriate, off-topic, or poor quality
+3. Ensure songs meet "classic" criteria (cultural significance, lasting impact)
+4. Rank remaining songs by how well they match the request
+
+Return the top ${constraints.targetCount || 15} songs that best align with the request.
+Only include songs you're confident about. Quality over quantity.
+
+Return as JSON array maintaining the original song structure with an added alignment_score (1-10).`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: verificationPrompt },
+        { 
+          role: "user", 
+          content: `Original request: "${originalPrompt}"
+
+Songs to verify:
+${JSON.stringify(rankedSongs.slice(0, 30), null, 2)}`
+        }
+      ],
+      temperature: 0.2,
+      max_tokens: 3000,
+    });
+
+    const content = response.choices[0]?.message?.content || "";
+    const jsonStr = content.replace(/```json|```/g, '').trim();
+    const verified = JSON.parse(jsonStr);
+    
+    return Array.isArray(verified) ? verified : rankedSongs.slice(0, constraints.targetCount || 15);
+
+  } catch (err) {
+    console.error("Alignment verification failed:", err.message);
+    return allSongs.slice(0, constraints.targetCount || 15);
+  }
+}
+
+// SEMANTIC SIMILARITY RANKING
+async function rankSongsBySementicSimilarity(songs, originalEmbedding, originalPrompt) {
+  try {
+    const songTexts = songs.map(song => 
+      `${song.title} by ${song.artist} ${song.genre || ''} ${song.reason || ''} ${song.significance || ''}`
+    );
+
+    const embeddingResponse = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: songTexts,
+    });
+
+    const songEmbeddings = embeddingResponse.data;
+
+    // Calculate cosine similarity
+    const songsWithSimilarity = songs.map((song, index) => {
+      const similarity = cosineSimilarity(originalEmbedding, songEmbeddings[index].embedding);
+      return {
+        ...song,
+        similarity_score: similarity
+      };
+    });
+
+    // Sort by similarity score (descending)
+    return songsWithSimilarity.sort((a, b) => b.similarity_score - a.similarity_score);
+
+  } catch (err) {
+    console.error("Semantic ranking failed:", err.message);
+    return songs;
+  }
+}
+
+// UTILITY FUNCTIONS
+function cosineSimilarity(vecA, vecB) {
+  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  return dotProduct / (magnitudeA * magnitudeB);
+}
+
+function removeDuplicateSongs(songs) {
+  const unique = {};
+  songs.forEach(song => {
+    const key = `${song.title?.toLowerCase().trim()}-${song.artist?.toLowerCase().trim()}`;
+    if (!unique[key] || (song.source === 'ai_generation' && unique[key].source !== 'ai_generation')) {
+      unique[key] = song;
+    }
+  });
+  return Object.values(unique);
+}
+
+function extractNumberFromPrompt(prompt) {
+  const match = prompt.match(/\b(\d+)\b/);
+  return match ? parseInt(match[1]) : null;
+}
+
+function extractYear(text) {
+  const yearMatch = text.match(/\b(19[4-9]\d|20[0-2]\d)\b/);
+  return yearMatch ? parseInt(yearMatch[1]) : null;
+}
+
+// FALLBACK: Basic web crawler if SerpAPI fails
+async function basicWebCrawler(query) {
+  try {
+    const searchQuery = encodeURIComponent(`${query} classic songs site:rollingstone.com OR site:billboard.com`);
+    const url = `https://www.google.com/search?q=${searchQuery}`;
+
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MusicBot/1.0)' }
+    });
+
+    const html = await response.text();
+    const $ = load(html);
+
+    const titles = [];
+    $('h3').each((_, el) => {
+      const text = $(el).text();
+      const match = text.match(/[""](.+?)[""] by (.+)/i);
+      if (match) {
+        titles.push({ 
+          title: match[1], 
+          artist: match[2],
+          source: 'web_crawl',
+          reason: "Found via web search"
+        });
+      }
+    });
+
+    return titles.slice(0, 15);
+
+  } catch (err) {
+    console.error("Basic web crawl failed:", err.message);
+    return [];
+  }
+}
+
+// SPOTIFY SEARCH (Enhanced)
+async function searchTracksOnSpotify(songs, token) {
+  const results = [];
+  const maxConcurrent = 5;
+
+  for (let i = 0; i < songs.length; i += maxConcurrent) {
+    const batch = songs.slice(i, i + maxConcurrent);
+    
+    const batchPromises = batch.map(async (song) => {
+      try {
+        // Multiple search strategies
+        const searchStrategies = [
+          `track:"${song.title}" artist:"${song.artist}"`,
+          `"${song.title}" "${song.artist}"`,
+          `${song.title} ${song.artist}`
+        ];
+
+        for (const query of searchStrategies) {
+          const response = await fetchFromSpotify(
+            `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=3`,
+            token
+          );
+
+          const tracks = response?.tracks?.items || [];
+          const bestMatch = findBestTrackMatch(tracks, song);
+          
+          if (bestMatch) {
+            bestMatch.classicMetadata = {
+              ...song,
+              search_strategy: query
+            };
+            return bestMatch;
+          }
+        }
+
+        console.warn(`No Spotify match found for: ${song.title} by ${song.artist}`);
+        return null;
+
+      } catch (err) {
+        console.error(`Spotify search failed for ${song.title}:`, err.message);
+        return null;
+      }
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    results.push(...batchResults.filter(Boolean));
+
+    // Rate limiting
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  return results;
+}
+
+function findBestTrackMatch(tracks, targetSong) {
+  if (!tracks.length) return null;
+
+  // Score each track based on title and artist similarity
+  const scoredTracks = tracks.map(track => {
+    const titleSim = calculateStringSimilarity(track.name.toLowerCase(), targetSong.title.toLowerCase());
+    const artistSim = Math.max(...track.artists.map(artist => 
+      calculateStringSimilarity(artist.name.toLowerCase(), targetSong.artist.toLowerCase())
+    ));
+    
+    return {
+      track,
+      score: (titleSim * 0.6) + (artistSim * 0.4)
+    };
+  });
+
+  scoredTracks.sort((a, b) => b.score - a.score);
+  
+  // Return best match if score is reasonable
+  return scoredTracks[0].score > 0.6 ? scoredTracks[0].track : tracks[0];
+}
+
+function calculateStringSimilarity(str1, str2) {
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  
+  if (longer.length === 0) return 1.0;
+  
+  const distance = levenshteinDistance(longer, shorter);
+  return (longer.length - distance) / longer.length;
+}
+
+function levenshteinDistance(str1, str2) {
+  const matrix = [];
+  
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
 }
