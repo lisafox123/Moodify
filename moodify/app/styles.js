@@ -1,55 +1,35 @@
-// styles.js - Centralized styles for the Home component
+// styles.js - Centralized styles for the Moodify app
 
 export const styles = {
+  // Container and Layout
   container: {
     minHeight: '100vh',
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: '#0f0f1a',
+    backgroundColor: '#FFFFF2',
     color: '#7A7687',
   },
-  button: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#ff7e5f',
-    background: 'linear-gradient(90deg, #C7C1DB, #9E94BE)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    marginTop: '1.5rem',
-  },
-  buttonHover: {
-    transform: 'translateY(-2px)',
-    boxShadow: '0 6px 20px rgba(115, 102, 159, 0.3)',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-    cursor: 'not-allowed',
-    background: '#555',
-  },
+
+  // Navigation Styles
   navbar: {
     width: '100%',
     padding: '1rem 2rem',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#C7C1DB',
     position: 'sticky',
     top: 0,
-    zIndex: 10,
-    backgroundColor: '#C7C1DB',
+    zIndex: 50,
+    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
   },
+
   logoContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
   },
+
   logoText: {
     fontSize: '2rem',
     fontWeight: 'bold',
@@ -58,16 +38,79 @@ export const styles = {
     WebkitTextFillColor: 'transparent',
     margin: 0,
   },
+
   navRight: {
     display: 'flex',
     alignItems: 'center',
     gap: '1rem',
   },
+
+  navRightMobile: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    backgroundColor: '#C7C1DB',
+    flexDirection: 'column',
+    padding: '1rem',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+    borderRadius: '0 0 12px 12px',
+    width: '250px',
+  },
+
+  mobileMenuButton: {
+    display: 'none',
+    background: 'none',
+    border: 'none',
+    color: '#7A7687',
+    cursor: 'pointer',
+    padding: '0.5rem',
+    '@media (max-width: 768px)': {
+      display: 'block',
+    },
+  },
+
+  mobileMenuButtonOpen: {
+    color: '#73669F',
+  },
+
+  // User Profile
+  userProfile: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+  },
+
+  userName: {
+    fontWeight: '500',
+    color: '#7A7687',
+  },
+
+  userAvatar: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    border: '2px solid rgba(255, 255, 255, 0.3)',
+    objectFit: 'cover',
+  },
+
+  userAvatarPlaceholder: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    backgroundColor: '#1DB954',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'white',
+    fontWeight: 'bold',
+  },
+
+  // Buttons
   spotifyButton: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-    padding: '0.5rem 1rem',
+    padding: '0.5rem 1.5rem',
     backgroundColor: '#E7E789',
     color: '#73669F',
     border: 'none',
@@ -77,400 +120,7 @@ export const styles = {
     fontWeight: '600',
     transition: 'all 0.2s ease',
   },
-  userProfile: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-  },
-  userName: {
-    fontWeight: '500',
-    fontSize: '1rem',
-    color: '#7A7687',
-  },
-  userAvatar: {
-    borderRadius: '50%',
-    border: '2px solid rgba(255, 255, 255, 0.2)',
-  },
-  main: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '3rem 1.5rem',
-    backgroundColor: '#FFFFF2',
-  },
-  inputContainer: {
-    width: '100%',
-    maxWidth: '800px',
-    marginTop: '1rem',
-  },
-  promptInput: {
-    width: '100%',
-    padding: '1.25rem',
-    fontSize: '1.125rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.05)',
-    color: '#7A7687',
-    border: '1px solid rgba(0, 0, 255, 0.1)',
-    borderRadius: '12px',
-    outline: 'none',
-    transition: 'all 0.3s ease',
-  },
-  promptInputFocus: {
-    border: '1px solid rgba(115, 102, 159, 0.5)',
-    boxShadow: '0 0 0 4px rgba(115, 102, 159, 0.1)',
-  },
-  promptLabel: {
-    display: 'block',
-    marginBottom: '0.75rem',
-    fontSize: '1.125rem',
-    fontWeight: '500',
-  },
-  title: {
-    margin: 0,
-    lineHeight: 1.15,
-    fontSize: '2.5rem',
-    textAlign: 'center',
-    background: 'linear-gradient(135deg, #f6b127, #E7C889, #E7E789, #e5e53a)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    padding: '0.5rem 0',
-  },
-  description: {
-    textAlign: 'center',
-    lineHeight: '1.5',
-    fontSize: '1.25rem',
-    margin: '1rem 0 2rem 0',
-    opacity: 0.9,
-    maxWidth: '600px',
-  },
-  error: {
-    color: '#ff5555',
-    marginBottom: '1.5rem',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: 'rgba(255, 85, 85, 0.1)',
-    borderRadius: '8px',
-    borderLeft: '4px solid #ff5555',
-    maxWidth: '800px',
-    width: '100%',
-  },
-  switchesContainer: {
-    width: '100%',
-    maxWidth: '800px',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '1rem',
-    marginBottom: '1.5rem',
-  },
-  switchRow: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: 'calc(50% - 0.5rem)',
-    padding: '0.75rem 1rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.05)',
-    borderRadius: '8px',
-  },
-  switchLabel: {
-    fontWeight: '500',
-    fontSize: '0.875rem',
-    marginBottom: '0.5rem',
-    color: 'rgba(122, 118, 135, 0.8)',
-  },
-  // Toggle button styles
-  toggleButton: {
-    position: 'relative',
-    width: '120px',
-    height: '30px',
-    borderRadius: '15px',
-    background: 'rgba(30, 30, 45, 0.5)',
-    borderWidth: '1px',
-    borderStyle: 'solid',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 4px',
-    overflow: 'hidden',
-  },
-  toggleButtonActive: {
-    background: 'linear-gradient(90deg, #E8E6F0, #73669F)',
-    borderColor: 'rgba(115, 102, 159, 0.2)',
-    boxShadow: '0 0 10px rgba(115, 102, 159, 0.3)',
-  },
-  toggleButtonInactive: {
-    background: 'linear-gradient(90deg, #FFF4DD, #E7C889)',
-    borderColor: 'rgba(231, 200, 137, 0.1)',
-    boxShadow: '0 0 10px rgba(231, 200, 137, 0.2)',
-  },
-  toggleSlider: {
-    position: 'absolute',
-    width: '22px',
-    height: '22px',
-    borderRadius: '50%',
-    backgroundColor: 'white',
-    transition: 'transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease',
-    transform: 'translateX(0)',
-    boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)',
-  },
-  toggleSliderActive: {
-    transform: 'translateX(90px)',
-    backgroundColor: '#ffffff',
-    boxShadow: '0 0 8px rgba(255, 255, 255, 0.5)',
-  },
-  toggleSliderInactive: {
-    transform: 'translateX(0)',
-    backgroundColor: '#ffffff',
-    boxShadow: '0 0 8px rgba(255, 255, 255, 0.3)',
-  },
-  toggleText: {
-    position: 'absolute',
-    width: '100%',
-    textAlign: 'center',
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
-    transition: 'opacity 0.3s ease',
-    color: 'rgba(255, 255, 255, 0.8)',
-    opacity: 0.9,
-    userSelect: 'none',
-  },
-  toggleTextOn: {
-    right: '20px',
-    color: 'white',
-    textShadow: '0 0 4px rgba(0, 0, 0, 0.3)',
-  },
-  toggleTextOff: {
-    left: '20px',
-    color: 'rgba(255, 255, 255, 0.9)',
-    textShadow: '0 0 4px rgba(0, 0, 0, 0.3)',
-  },
-  optionLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '0.5rem',
-  },
-  settingsSection: {
-    width: '100%',
-    maxWidth: '800px',
-    marginBottom: '2rem',
-  },
-  sectionTitle: {
-    fontSize: '1.25rem',
-    fontWeight: '600',
-    marginBottom: '1rem',
-    width: '100%',
-    maxWidth: '800px',
-  },
-  customizeInputContainer: {
-    width: 'calc(50% - 0.5rem)',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: '8px',
-    padding: '0.75rem 1rem',
-  },
-  customInput: {
-    padding: '0.5rem 0.75rem',
-    fontSize: '0.875rem',
-    backgroundColor: 'rgba(115, 102, 159, 0.2)',
-    color: '#7A7687',
-    border: '1px solid rgba(199, 193, 219, 0.1)',
-    borderRadius: '20px',
-    outline: 'none',
-    transition: 'all 0.3s ease',
-  },
-  customInputFocus: {
-    border: '1px solid rgba(115, 102, 159, 0.5)',
-    boxShadow: '0 0 0 3px rgba(115, 102, 159, 0.1)',
-  },
-  // Top tracks section styles
-  topTracksSection: {
-    width: '100%',
-    maxWidth: '800px',
-    marginTop: '2rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.05)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-  },
-  tracksList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: '1rem 0 0 0',
-  },
-  trackItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0.75rem 0',
-    borderBottom: '1px solid rgba(115, 102, 159, 0.1)',
-  },
-  trackItemHover: {
-    transform: 'scale(1.05)',
-    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',
-  },
-  trackNumber: {
-    width: '30px',
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: 'rgba(122, 118, 135, 0.7)',
-  },
-  trackImage: {
-    borderRadius: '4px',
-    marginRight: '1rem',
-  },
-  trackInfo: {
-    flex: 1,
-  },
-  trackName: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    marginBottom: '0.25rem',
-  },
-  trackArtist: {
-    fontSize: '0.875rem',
-    color: 'rgba(122, 118, 135, 0.7)',
-  },
-  loadingIndicator: {
-    textAlign: 'center',
-    padding: '1rem',
-    color: 'rgba(122, 118, 135, 0.7)',
-  },
-  // Recommendations section styles
-  recommendationsSection: {
-    width: '100%',
-    maxWidth: '800px',
-    marginTop: '2rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.05)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-  },
-  storyText: {
-    fontStyle: 'italic',
-    marginBottom: '1.5rem',
-    padding: '1rem',
-    borderRadius: '8px',
-    backgroundColor: 'rgba(158, 148, 190, 0.2)',
-    lineHeight: '1.6',
-  },
-  recommendationsList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: '1rem 0 0 0',
-  },
-  playlistInfo: {
-    marginTop: '1.5rem',
-    padding: '1rem',
-    backgroundColor: 'rgba(29, 185, 84, 0.1)',
-    borderRadius: '8px',
-    border: '1px solid rgba(29, 185, 84, 0.3)',
-  },
-  playlistTitle: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    marginBottom: '0.5rem',
-  },
-  playlistLink: {
-    color: '#1DB954',
-    textDecoration: 'none',
-    fontWeight: '500',
-    display: 'inline-block',
-    marginTop: '0.5rem',
-  },
-  // Audio features and insights styles
-  trackDetails: {
-    padding: '0.75rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.02)',
-    borderRadius: '8px',
-    marginTop: '0.5rem',
-    marginRight: '1rem',
-    overflow: 'hidden',
-    maxHeight: '0',
-    transition: 'max-height 0.3s ease, padding 0.3s ease',
-  },
-  trackDetailsOpen: {
-    maxHeight: '1000px',
-    padding: '0.75rem',
-  },
-  detailsButton: {
-    background: 'none',
-    border: 'none',
-    color: 'rgba(115, 102, 159, 0.6)',
-    fontSize: '0.75rem',
-    cursor: 'pointer',
-    padding: '0.25rem 0.5rem',
-    marginLeft: '0.5rem',
-    borderRadius: '4px',
-  },
-  insightsContainer: {
-    marginTop: '2rem',
-    padding: '1rem',
-    backgroundColor: 'rgba(231, 200, 137, 0.1)',
-    borderRadius: '8px',
-    border: '1px solid rgba(231, 200, 137, 0.3)',
-  },
-  insightTitle: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    marginBottom: '1rem',
-    color: 'rgba(122, 118, 135, 0.9)',
-  },
-  insightsList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-  },
-  insightItem: {
-    padding: '0.75rem',
-    marginBottom: '0.75rem',
-    backgroundColor: 'rgba(231, 200, 137, 0.2)',
-    borderRadius: '8px',
-    fontSize: '0.9rem',
-    lineHeight: '1.5',
-  },
-  moodFeatures: {
-    marginTop: '1rem',
-    marginBottom: '1.5rem',
-  },
-  spotifyListenButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#1DB954',
-    color: 'white',
-    border: 'none',
-    borderRadius: '2rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    transition: 'all 0.2s ease',
-    textDecoration: 'none',
-    marginLeft: '1rem',
-  },
-  spotifyListenButtonHover: {
-    backgroundColor: '#1aa34a',
-    transform: 'translateY(-2px)',
-    boxShadow: '0 4px 12px rgba(29, 185, 84, 0.3)',
-  },
-  // Track buttons and actions container styles
-  trackButtonsContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    marginLeft: 'auto',
-    gap: '0.5rem',
-  },
-  trackActionsContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: '0.5rem',
-    marginLeft: 'auto',
-  },
-  trackMainActions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-  // Logout button styles
+
   logoutButton: {
     backgroundColor: 'transparent',
     border: '1px solid rgba(231, 231, 137, 0.3)',
@@ -480,34 +130,542 @@ export const styles = {
     fontSize: '0.75rem',
     cursor: 'pointer',
     fontWeight: 'bold',
+    transition: 'all 0.2s ease',
   },
-  // User avatar placeholder styles
-  userAvatarPlaceholder: {
-    width: '32px',
-    height: '32px',
+
+  // Main Content
+  mainContainer: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '3rem 1.5rem',
+    width: '100%',
+  },
+
+  heroSection: {
+    textAlign: 'center',
+    marginBottom: '3rem',
+  },
+
+  mainTitle: {
+    fontSize: 'clamp(2rem, 5vw, 3rem)',
+    lineHeight: 1.2,
+    background: 'linear-gradient(135deg, #f6b127, #E7C889, #E7E789, #e5e53a)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    marginBottom: '1rem',
+  },
+
+  mainDescription: {
+    fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+    opacity: 0.9,
+    maxWidth: '600px',
+    margin: '0 auto',
+  },
+
+  // Error Message
+  errorMessage: {
+    backgroundColor: 'rgba(255, 85, 85, 0.1)',
+    borderLeft: '4px solid #ff5555',
+    color: '#ff5555',
+    padding: '1rem',
+    borderRadius: '8px',
+    marginBottom: '2rem',
+    maxWidth: '100%',
+  },
+
+  // Settings Section
+  settingsSection: {
+    backgroundColor: 'rgba(0, 0, 255, 0.03)',
+    borderRadius: '16px',
+    padding: '2rem',
+    marginBottom: '2rem',
+  },
+
+  sectionTitle: {
+    fontSize: '1.5rem',
+    fontWeight: '600',
+    marginBottom: '1.5rem',
+    color: '#7A7687',
+  },
+
+  settingsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: '1.5rem',
+  },
+
+  // Toggle Switch
+  toggleContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    padding: '1rem',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+  },
+
+  toggleLabel: {
+    display: 'block',
+    fontWeight: '500',
+    marginBottom: '0.75rem',
+    color: '#73669F',
+  },
+
+  toggleButton: {
+    position: 'relative',
+    width: '120px',
+    height: '36px',
+    borderRadius: '18px',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    overflow: 'hidden',
+    background: 'linear-gradient(90deg, #FFF4DD, #E7C889)',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+  },
+
+  toggleButtonActive: {
+    background: 'linear-gradient(90deg, #E8E6F0, #73669F)',
+  },
+
+  toggleSlider: {
+    position: 'absolute',
+    width: '28px',
+    height: '28px',
     borderRadius: '50%',
-    backgroundColor: '#1DB954',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'white',
-    fontWeight: 'bold',
+    background: 'white',
+    top: '4px',
+    left: '4px',
+    transition: 'transform 0.3s ease',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
   },
-  // Feedback container integration styles
-  trackWithFeedback: {
+
+  toggleSliderActive: {
+    transform: 'translateX(84px)',
+  },
+
+  toggleText: {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    color: 'rgba(255, 255, 255, 0.9)',
+    transition: 'opacity 0.3s ease',
+    userSelect: 'none',
+    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+  },
+
+  toggleTextLeft: {
+    left: '12px',
+  },
+
+  toggleTextRight: {
+    right: '12px',
+  },
+
+  // Custom Story Input
+  customStoryContainer: {
+    gridColumn: '1 / -1',
+  },
+
+  customStoryInput: {
+    width: '100%',
+    padding: '0.75rem 1rem',
+    marginTop: '1rem',
+    fontSize: '0.875rem',
+    backgroundColor: 'rgba(115, 102, 159, 0.1)',
+    color: '#7A7687',
+    border: '1px solid rgba(199, 193, 219, 0.2)',
+    borderRadius: '20px',
+    outline: 'none',
+    transition: 'all 0.3s ease',
+  },
+
+  // Input Section
+  inputSection: {
+    marginBottom: '3rem',
+  },
+
+  inputContainer: {
+    maxWidth: '600px',
+    margin: '0 auto',
+  },
+
+  inputLabel: {
+    display: 'block',
+    fontSize: '1.125rem',
+    fontWeight: '500',
+    marginBottom: '1rem',
+    textAlign: 'center',
+  },
+
+  moodInput: {
+    width: '100%',
+    padding: '1rem 1.5rem',
+    fontSize: '1.125rem',
+    backgroundColor: 'rgba(0, 0, 255, 0.05)',
+    color: '#7A7687',
+    border: '2px solid rgba(0, 0, 255, 0.1)',
+    borderRadius: '12px',
+    outline: 'none',
+    transition: 'all 0.3s ease',
+  },
+
+  samplePrompts: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.5rem',
+    marginTop: '1rem',
+    justifyContent: 'center',
+  },
+
+  samplePrompt: {
+    padding: '0.5rem 1rem',
+    fontSize: '0.875rem',
+    backgroundColor: 'rgba(231, 231, 137, 0.2)',
+    color: '#73669F',
+    border: '1px solid rgba(231, 231, 137, 0.3)',
+    borderRadius: '20px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+
+  generateButton: {
+    display: 'block',
+    margin: '2rem auto 0',
+    padding: '1rem 2rem',
+    fontSize: '1.125rem',
+    fontWeight: '600',
+    background: 'linear-gradient(90deg, #C7C1DB, #9E94BE)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 12px rgba(115, 102, 159, 0.2)',
+  },
+
+  buttonDisabled: {
+    opacity: 0.6,
+    cursor: 'not-allowed',
+    background: '#888',
+  },
+
+  // Tracks Section
+  tracksSection: {
+    backgroundColor: 'rgba(0, 0, 255, 0.03)',
+    borderRadius: '16px',
+    padding: '2rem',
+    marginBottom: '2rem',
+  },
+
+  loadingSpinner: {
+    textAlign: 'center',
+    padding: '2rem',
+    color: 'rgba(122, 118, 135, 0.7)',
+  },
+
+  tracksList: {
     display: 'flex',
     flexDirection: 'column',
-    width: '100%',
+    gap: '1rem',
   },
-  trackMainContent: {
+
+  // Track Card
+  trackCard: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '1rem',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.3s ease',
+  },
+
+  trackCardHover: {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+  },
+
+  trackMain: {
     display: 'flex',
     alignItems: 'center',
-    width: '100%',
+    gap: '1rem',
   },
-  feedbackContainer: {
+
+  trackNumber: {
+    fontSize: '1.25rem',
+    fontWeight: '600',
+    color: 'rgba(122, 118, 135, 0.5)',
+    minWidth: '30px',
+    textAlign: 'center',
+  },
+
+  trackImageContainer: {
+    flexShrink: 0,
+  },
+
+  trackImage: {
+    borderRadius: '8px',
+    objectFit: 'cover',
+  },
+
+  trackInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  trackName: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    marginBottom: '0.25rem',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+
+  trackArtist: {
+    fontSize: '0.875rem',
+    color: 'rgba(122, 118, 135, 0.7)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+
+  detailsToggle: {
+    background: 'none',
+    border: 'none',
+    color: '#73669F',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    padding: '0.25rem 0.5rem',
+    marginTop: '0.25rem',
+    borderRadius: '4px',
+    transition: 'all 0.2s ease',
+  },
+
+  trackActions: {
+    display: 'flex',
+    gap: '0.5rem',
+    flexShrink: 0,
+  },
+
+  actionButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    padding: '0.5rem 1rem',
+    borderRadius: '20px',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    textDecoration: 'none',
+    border: 'none',
+    whiteSpace: 'nowrap',
+  },
+
+  buttonText: {
+    display: 'inline-block',
+  },
+
+  storyButton: {
+    backgroundColor: 'rgba(231, 231, 137, 0.2)',
+    color: '#73669F',
+  },
+
+  spotifyPlayButton: {
+    backgroundColor: '#1DB954',
+    color: 'white',
+  },
+
+  trackDetails: {
+    marginTop: '1rem',
+    paddingTop: '1rem',
+    borderTop: '1px solid rgba(0, 0, 0, 0.05)',
+  },
+
+  // Lyrics Info
+  lyricsInfo: {
+    marginTop: '1rem',
+  },
+
+  lyricsSentiment: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    marginBottom: '0.5rem',
+  },
+
+  label: {
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    color: '#73669F',
+  },
+
+  sentimentBadge: {
+    padding: '0.25rem 0.75rem',
+    borderRadius: '20px',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    textTransform: 'capitalize',
+  },
+
+  sentimentPositive: {
+    backgroundColor: 'rgba(29, 185, 84, 0.2)',
+    color: '#1DB954',
+  },
+
+  sentimentNegative: {
+    backgroundColor: 'rgba(255, 85, 85, 0.2)',
+    color: '#ff5555',
+  },
+
+  sentimentNeutral: {
+    backgroundColor: 'rgba(122, 118, 135, 0.2)',
+    color: '#7A7687',
+  },
+
+  lyricsThemes: {
+    marginTop: '0.5rem',
+  },
+
+  themesList: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.25rem',
+    marginTop: '0.25rem',
+  },
+
+  themeTag: {
+    padding: '0.25rem 0.5rem',
+    backgroundColor: 'rgba(115, 102, 159, 0.1)',
+    borderRadius: '12px',
+    fontSize: '0.75rem',
+    color: '#73669F',
+  },
+
+  feedbackWrapper: {
+    marginTop: '0.75rem',
     display: 'flex',
     justifyContent: 'flex-end',
-    marginTop: '0.5rem',
-    paddingRight: '1rem',
-  }
+  },
+
+  // Recommendations Section
+  recommendationsSection: {
+    backgroundColor: 'rgba(158, 148, 190, 0.05)',
+    borderRadius: '16px',
+    padding: '2rem',
+    marginBottom: '2rem',
+  },
+
+  storyText: {
+    fontStyle: 'italic',
+    lineHeight: '1.6',
+    padding: '1.5rem',
+    backgroundColor: 'rgba(158, 148, 190, 0.1)',
+    borderRadius: '12px',
+    marginBottom: '2rem',
+    borderLeft: '4px solid #9E94BE',
+  },
+
+  moodFeatures: {
+    backgroundColor: 'rgba(231, 231, 137, 0.1)',
+    padding: '1.5rem',
+    borderRadius: '12px',
+    marginBottom: '2rem',
+  },
+
+  // AI Insights
+  insightsSection: {
+    backgroundColor: 'rgba(231, 200, 137, 0.1)',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    marginTop: '2rem',
+  },
+
+  insightsTitle: {
+    fontSize: '1.25rem',
+    fontWeight: '600',
+    marginBottom: '1rem',
+    color: '#73669F',
+  },
+
+  insightsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem',
+  },
+
+  insightItem: {
+    padding: '1rem',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: '8px',
+    fontSize: '0.9rem',
+    lineHeight: '1.6',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+  },
+
+  // Playlist Info
+  playlistSection: {
+    backgroundColor: 'rgba(29, 185, 84, 0.1)',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    marginTop: '2rem',
+  },
+
+  playlistTitle: {
+    fontSize: '1.25rem',
+    fontWeight: '600',
+    marginBottom: '0.5rem',
+    color: '#1DB954',
+  },
+
+  playlistDescription: {
+    marginBottom: '1rem',
+    lineHeight: '1.6',
+  },
+
+  playlistActions: {
+    display: 'flex',
+    gap: '1rem',
+    flexWrap: 'wrap',
+  },
+
+  // Mobile-specific styles
+  mobileNavbar: {
+    padding: '1rem',
+  },
+  
+  mobileLogoText: {
+    fontSize: '1.5rem',
+  },
+  
+  mobileTrackMain: {
+    flexWrap: 'wrap',
+  },
+  
+  mobileTrackActions: {
+    width: '100%',
+    marginTop: '0.75rem',
+    justifyContent: 'space-between',
+  },
+  
+  mobileActionButton: {
+    padding: '0.5rem',
+  },
+  
+  // Small mobile styles
+  smallMobileTitle: {
+    fontSize: '1.75rem',
+  },
+  
+  smallMobileDescription: {
+    fontSize: '1rem',
+  },
+  
+  smallMobilePadding: {
+    padding: '1.5rem 1rem',
+  },
+  
+  smallMobileTrackImage: {
+    width: '50px',
+    height: '50px',
+  },
 };

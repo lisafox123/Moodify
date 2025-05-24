@@ -5,44 +5,184 @@ import Image from 'next/image';
 import AudioFeaturesDisplay from './components/AudioFeaturesDisplay';
 import StoryModal from './components/StoryModal';
 import FeedbackButton from './components/FeedbackButton';
-import { styles } from './styles'; // Import the separated styles
+import { styles } from './styles';
+
+// Icon components
+const MenuIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="18" y1="6" x2="6" y2="18"></line>
+    <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+);
+
+const PlayIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M3 2.5v11l10-5.5L3 2.5z"/>
+  </svg>
+);
+
+const StoryIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2 1v10h8V3H4zm2 2h4v2H6V5zm0 3h4v2H6V8zm0 3h2v2H6v-2z"/>
+  </svg>
+);
 
 // Toggle Switch Component
 const ToggleSwitch = ({ isOn, label, leftText, rightText, onToggle }) => {
   return (
-    <div style={styles.optionLabel}>
-      <span style={styles.switchLabel}>{label}</span>
+    <div style={styles.toggleContainer}>
+      <span style={styles.toggleLabel}>{label}</span>
       <div
         style={{
           ...styles.toggleButton,
-          ...(isOn ? styles.toggleButtonActive : styles.toggleButtonInactive),
+          ...(isOn ? styles.toggleButtonActive : {})
         }}
         onClick={onToggle}
       >
-        <div
-          style={{
-            ...styles.toggleSlider,
-            ...(isOn ? styles.toggleSliderActive : styles.toggleSliderInactive),
-          }}
+        <div style={{
+          ...styles.toggleSlider,
+          ...(isOn ? styles.toggleSliderActive : {})
+        }} />
+        <span style={{
+          ...styles.toggleText,
+          ...styles.toggleTextRight,
+          opacity: isOn ? 0 : 1
+        }}>{leftText}</span>
+        <span style={{
+          ...styles.toggleText,
+          ...styles.toggleTextLeft,
+          opacity: isOn ? 1 : 0
+        }}>{rightText}</span>
+      </div>
+    </div>
+  );
+};
+
+// Track Card Component
+const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, clickedTrackId, userData, onFeedbackSubmitted, expanded, onToggleExpand }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div 
+      style={{
+        ...styles.trackCard,
+        ...(isHovered ? styles.trackCardHover : {})
+      }}
+      onMouseEnter={() => setIsHovered(true)} 
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div style={styles.trackMain}>
+        <span style={styles.trackNumber}>{index + 1}</span>
+        <div style={styles.trackImageContainer}>
+          {track.album.images && track.album.images.length > 0 && (
+            <Image
+              src={track.album.images[1]?.url || track.album.images[0].url}
+              alt={track.album.name}
+              width={60}
+              height={60}
+              style={styles.trackImage}
+              unoptimized={true}
+            />
+          )}
+        </div>
+        
+        <div style={styles.trackInfo}>
+          <div style={styles.trackName}>{track.name}</div>
+          <div style={styles.trackArtist}>
+            {track.artists.map(artist => artist.name).join(', ')}
+          </div>
+          
+          {isRecommendation && (
+            <button
+              onClick={() => onToggleExpand(track.id)}
+              style={styles.detailsToggle}
+            >
+              {expanded ? 'Hide Details' : 'Show Details'}
+            </button>
+          )}
+        </div>
+
+        <div style={styles.trackActions}>
+          <button
+            onClick={() => onStoryClick(track.id, track.artists[0].name, track.name)}
+            style={{
+              ...styles.actionButton,
+              ...styles.storyButton,
+              ...(isLoading && clickedTrackId === track.id ? styles.buttonDisabled : {})
+            }}
+            disabled={isLoading && clickedTrackId === track.id}
+          >
+            <StoryIcon />
+            <span style={styles.buttonText}>
+              {isLoading && clickedTrackId === track.id ? 'Loading...' : 'Story'}
+            </span>
+          </button>
+          
+          <a
+            href={track.external_urls.spotify}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...styles.actionButton,
+              ...styles.spotifyPlayButton
+            }}
+          >
+            <PlayIcon />
+            <span style={styles.buttonText}>Play</span>
+          </a>
+        </div>
+      </div>
+
+      {/* Expanded details for recommendations */}
+      {isRecommendation && expanded && (
+        <div style={styles.trackDetails}>
+          {track.audioFeatures && (
+            <AudioFeaturesDisplay features={track.audioFeatures} />
+          )}
+          
+          {track.lyricsInfo && (
+            <div style={styles.lyricsInfo}>
+              <div style={styles.lyricsSentiment}>
+                <span style={styles.label}>Sentiment:</span>
+                <span style={{
+                  ...styles.sentimentBadge,
+                  ...(track.lyricsInfo.sentiment === 'positive' ? styles.sentimentPositive :
+                     track.lyricsInfo.sentiment === 'negative' ? styles.sentimentNegative :
+                     styles.sentimentNeutral)
+                }}>
+                  {track.lyricsInfo.sentiment}
+                </span>
+              </div>
+              
+              {track.lyricsInfo.themes && track.lyricsInfo.themes.length > 0 && (
+                <div style={styles.lyricsThemes}>
+                  <span style={styles.label}>Themes:</span>
+                  <div style={styles.themesList}>
+                    {track.lyricsInfo.themes.map((theme, i) => (
+                      <span key={i} style={styles.themeTag}>{theme}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={styles.feedbackWrapper}>
+        <FeedbackButton
+          trackId={track.id}
+          userId={userData?.id}
+          onFeedbackSubmitted={onFeedbackSubmitted}
         />
-        <span
-          style={{
-            ...styles.toggleText,
-            ...styles.toggleTextOff,
-            opacity: isOn ? 0 : 1,
-          }}
-        >
-          {leftText}
-        </span>
-        <span
-          style={{
-            ...styles.toggleText,
-            ...styles.toggleTextOn,
-            opacity: isOn ? 1 : 0,
-          }}
-        >
-          {rightText}
-        </span>
       </div>
     </div>
   );
@@ -52,8 +192,7 @@ export default function Home() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [prompt, setPrompt] = useState('');
-  const [inputFocused, setInputFocused] = useState(false);
-  const [buttonHover, setButtonHover] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Authentication and user state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -64,10 +203,9 @@ export default function Home() {
 
   // Toggle states
   const [moodMode, setMoodMode] = useState(true);
-  const [playlistMode, setPlaylistMode] = useState(false);
+  const [playlistMode, setPlaylistMode] = useState(true);
   const [customMode, setCustomMode] = useState(false);
   const [customStory, setCustomStory] = useState('');
-  const [customInputFocused, setCustomInputFocused] = useState(false);
 
   // Recommendations state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -83,19 +221,20 @@ export default function Home() {
   const [story, setStory] = useState(null);
   const [trackId, setTrackId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [hoveredTrackId, setHoveredTrackId] = useState(null);
   const [clickedTrackId, setClickedTrackId] = useState(null);
 
-  // Feedback callback handler
+  // Sample prompt buttons
+  const samplePrompts = [
+    "Upbeat morning workout",
+    "Calm focus for studying",
+    "Friday night party vibes",
+  ];
+
+  // Callback handlers
   const handleFeedbackSubmitted = useCallback((trackId, feedback) => {
     console.log(`Feedback submitted for track ${trackId}: ${feedback}`);
-    // You can add additional logic here if needed, such as:
-    // - Updating local state
-    // - Triggering analytics
-    // - Showing confirmation messages
   }, []);
 
-  // Function to fetch user profile
   const fetchUserProfile = useCallback(async (token) => {
     try {
       const response = await fetch('https://api.spotify.com/v1/me', {
@@ -119,7 +258,6 @@ export default function Home() {
     }
   }, []);
 
-  // Function to fetch top tracks
   const fetchTopTracks = useCallback(async () => {
     if (!accessToken) return;
 
@@ -147,7 +285,6 @@ export default function Home() {
     }
   }, [accessToken]);
 
-  // Function to exchange code for token
   const exchangeCodeForToken = useCallback(async (code) => {
     try {
       console.log('Exchanging code for token...');
@@ -198,7 +335,6 @@ export default function Home() {
     }
   }, [fetchUserProfile]);
 
-  // Function to handle logout
   const handleLogout = () => {
     localStorage.removeItem('spotify_access_token');
     localStorage.removeItem('spotify_token_expiry');
@@ -211,9 +347,9 @@ export default function Home() {
     setGeneratedPlaylist(null);
     setAiInsights([]);
     setAudioFeaturesData(null);
+    setMobileMenuOpen(false);
   };
 
-  // Handle authentication on component mount
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const accessToken = queryParams.get('access_token');
@@ -263,7 +399,6 @@ export default function Home() {
     }
   }, [exchangeCodeForToken, fetchUserProfile]);
 
-  // Fetch user's top tracks when accessToken changes
   useEffect(() => {
     if (accessToken) {
       fetchTopTracks();
@@ -352,7 +487,6 @@ export default function Home() {
       setRecommendations(recommendationData.recommendations || []);
       setRecommendationStory(recommendationData.story || '');
 
-      // Get AI insights for the recommendations
       try {
         const aiResponse = await fetch('/api/ai-recommendations', {
           method: 'POST',
@@ -378,7 +512,6 @@ export default function Home() {
         console.error('Error enhancing with AI:', aiError);
       }
 
-      // Create playlist if needed
       if (playlistMode && recommendationData.recommendations && recommendationData.recommendations.length > 0) {
         try {
           const playlistResponse = await fetch('/api/recommendations', {
@@ -439,8 +572,8 @@ export default function Home() {
       }
       return data.story;
     } catch (error) {
-      console.error('無法獲取故事:', error.message);
-      return `錯誤: ${error.message}`;
+      console.error('Unable to get story:', error.message);
+      return `Error: ${error.message}`;
     } finally {
       setIsLoading(false);
       setClickedTrackId(null);
@@ -448,14 +581,15 @@ export default function Home() {
   };
 
   const handleTrackClick = async (trackId, artist, song) => {
+    setClickedTrackId(trackId);
     try {
       const trackStory = await getStoryForTrack(artist, song);
       setStory(trackStory);
       setTrackId(trackId);
       setIsModalOpen(true);
     } catch (error) {
-      console.error('處理歌曲故事時出錯:', error);
-      setStory(`錯誤: ${error.message}`);
+      console.error('Error handling track story:', error);
+      setStory(`Error: ${error.message}`);
       setIsModalOpen(true);
     }
   };
@@ -473,7 +607,21 @@ export default function Home() {
           <h1 style={styles.logoText}>Moodify</h1>
         </div>
 
-        <div style={styles.navRight}>
+        <button
+          style={{
+            ...styles.mobileMenuButton,
+            ...(mobileMenuOpen ? styles.mobileMenuButtonOpen : {})
+          }}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+        </button>
+
+        <div style={{
+          ...styles.navRight,
+          ...(mobileMenuOpen ? styles.navRightMobile : {})
+        }}>
           {isLoggedIn && userData ? (
             <div style={styles.userProfile}>
               <span style={styles.userName}>
@@ -483,8 +631,8 @@ export default function Home() {
                 <Image
                   src={userData.images[0].url}
                   alt="User Avatar"
-                  width={32}
-                  height={32}
+                  width={40}
+                  height={40}
                   style={styles.userAvatar}
                   unoptimized={true}
                 />
@@ -511,189 +659,134 @@ export default function Home() {
         </div>
       </nav>
 
-      <main style={styles.main}>
-        <h1 style={styles.title}>Generate Music Based on Your Mood</h1>
-        <p style={styles.description}>
-          Describe how you&apos;re feeling or what vibe you&apos;re looking for, and we&apos;ll create the perfect playlist
-        </p>
+      <main style={styles.mainContainer}>
+        <div style={styles.heroSection}>
+          <h1 style={styles.mainTitle}>Generate Music Based on Your Mood</h1>
+          <p style={styles.mainDescription}>
+            Describe how you're feeling or what vibe you're looking for, and we'll create the perfect playlist
+          </p>
+        </div>
 
         {error && (
-          <p style={styles.error}>Error: {error}</p>
+          <div style={styles.errorMessage}>
+            Error: {error}
+          </div>
         )}
 
         <div style={styles.settingsSection}>
           <h2 style={styles.sectionTitle}>Settings</h2>
-          <div style={styles.switchesContainer}>
-            <div style={styles.switchRow}>
-              <ToggleSwitch
-                isOn={moodMode}
-                label="Recommendation Type"
-                leftText="Classic"
-                rightText="Mood"
-                onToggle={() => setMoodMode(!moodMode)}
-              />
-              <ToggleSwitch
-                isOn={playlistMode}
-                label="Output Format"
-                leftText="Track"
-                rightText="Playlist"
-                onToggle={() => setPlaylistMode(!playlistMode)}
-              />
-            </div>
-
-            <div style={styles.switchRow}>
-              <ToggleSwitch
-                isOn={customMode}
-                label="Story Style"
-                leftText="Classic"
-                rightText="Custom"
-                onToggle={() => setCustomMode(!customMode)}
-              />
-
-              {customMode && (
-                <div style={{ marginTop: '0.75rem' }}>
-                  <input
-                    id="custom-story"
-                    type="text"
-                    placeholder="e.g., 'A traveler discovering new sounds...'"
-                    value={customStory}
-                    onChange={(e) => setCustomStory(e.target.value)}
-                    onFocus={() => setCustomInputFocused(true)}
-                    onBlur={() => setCustomInputFocused(false)}
-                    style={{
-                      ...styles.customInput,
-                      ...(customInputFocused ? styles.customInputFocus : {})
-                    }}
-                  />
-                </div>
-              )}
-            </div>
+          <div style={styles.settingsGrid}>
+            <ToggleSwitch
+              isOn={moodMode}
+              label="Recommendation Type"
+              leftText="Classic"
+              rightText="Mood"
+              onToggle={() => setMoodMode(!moodMode)}
+            />
+            <ToggleSwitch
+              isOn={playlistMode}
+              label="Output Format"
+              leftText="Track"
+              rightText="Playlist"
+              onToggle={() => setPlaylistMode(!playlistMode)}
+            />
+            <ToggleSwitch
+              isOn={customMode}
+              label="Story Style"
+              leftText="Classic"
+              rightText="Custom"
+              onToggle={() => setCustomMode(!customMode)}
+            />
+            {customMode && (
+              <div style={styles.customStoryContainer}>
+                <input
+                  type="text"
+                  placeholder="e.g., 'A traveler discovering new sounds...'"
+                  value={customStory}
+                  onChange={(e) => setCustomStory(e.target.value)}
+                  style={styles.customStoryInput}
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        <div style={styles.inputContainer}>
-          <label style={styles.promptLabel} htmlFor="mood-prompt">
-            Enter your mood or vibe
-          </label>
-          <input
-            id="mood-prompt"
-            type="text"
-            placeholder="e.g., 'Upbeat music for a morning workout' or 'Calm piano for reading'"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
-            style={{
-              ...styles.promptInput,
-              ...(inputFocused ? styles.promptInputFocus : {})
-            }}
-          />
+        <div style={styles.inputSection}>
+          <div style={styles.inputContainer}>
+            <label style={styles.inputLabel} htmlFor="mood-prompt">
+              Enter your mood or vibe
+            </label>
+            <input
+              id="mood-prompt"
+              type="text"
+              placeholder="e.g., 'Upbeat music for a morning workout' or 'Calm piano for reading'"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              style={styles.moodInput}
+            />
+            
+            <div style={styles.samplePrompts}>
+              {samplePrompts.map((samplePrompt, index) => (
+                <button
+                  key={index}
+                  style={styles.samplePrompt}
+                  onClick={() => setPrompt(samplePrompt)}
+                >
+                  {samplePrompt}
+                </button>
+              ))}
+            </div>
 
-          <button
-            onClick={generateRecommendations}
-            disabled={!isLoggedIn || !prompt || isGenerating}
-            onMouseEnter={() => setButtonHover(true)}
-            onMouseLeave={() => setButtonHover(false)}
-            style={{
-              ...styles.button,
-              ...(buttonHover && !isGenerating && isLoggedIn && prompt ? styles.buttonHover : {}),
-              ...(!isLoggedIn || !prompt || isGenerating ? styles.buttonDisabled : {})
-            }}
-          >
-            {isGenerating ? 'Generating...' : 'Generate Recommendations'}
-          </button>
+            <button
+              onClick={generateRecommendations}
+              disabled={!isLoggedIn || !prompt || isGenerating}
+              style={{
+                ...styles.generateButton,
+                ...(!isLoggedIn || !prompt || isGenerating ? styles.buttonDisabled : {})
+              }}
+            >
+              {isGenerating ? 'Generating...' : 'Generate Recommendations'}
+            </button>
+          </div>
         </div>
 
-        {/* Display top tracks section if logged in */}
         {isLoggedIn && (
-          <div style={styles.topTracksSection}>
+          <div style={styles.tracksSection}>
             <h2 style={styles.sectionTitle}>Your Top Tracks</h2>
-
+            
             {isLoadingTracks ? (
-              <p style={styles.loadingIndicator}>Loading your top tracks...</p>
+              <div style={styles.loadingSpinner}>Loading your top tracks...</div>
             ) : topTracks.length > 0 ? (
-              <ul style={styles.tracksList}>
+              <div style={styles.tracksList}>
                 {topTracks.map((track, index) => (
-                  <li key={track.id} style={styles.trackItem}>
-                    <div style={styles.trackWithFeedback}>
-                      <div style={styles.trackMainContent}>
-                        <span style={styles.trackNumber}>{index + 1}</span>
-                        {track.album.images && track.album.images.length > 0 && (
-                          <Image
-                            src={track.album.images[2].url}
-                            alt={track.album.name}
-                            width={40}
-                            height={40}
-                            style={styles.trackImage}
-                            unoptimized={true}
-                          />
-                        )}
-                        <div style={styles.trackInfo}>
-                          <div style={styles.trackName}>{track.name}</div>
-                          <div style={styles.trackArtist}>
-                            {track.artists.map(artist => artist.name).join(', ')}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setClickedTrackId(track.id);
-                            setIsLoading(true);
-                            handleTrackClick(track.id, track.artists[0].name, track.name);
-                          }}
-                          style={{
-                            ...styles.button,
-                            ...(isLoading ? styles.buttonDisabled : {}),
-                            ...(hoveredTrackId === track.id ? styles.trackItemHover : {})
-                          }}
-                          onMouseEnter={() => setHoveredTrackId(track.id)}
-                          onMouseLeave={() => setHoveredTrackId(null)}
-                          disabled={isLoading && clickedTrackId === track.id}
-                          aria-label="生成歌曲故事"
-                        >
-                          {isLoading && clickedTrackId === track.id ? '生成中...' : '生成故事'}
-                        </button>
-                      </div>
-                      
-                      {/* Feedback Button for Top Tracks */}
-                      <div style={styles.feedbackContainer}>
-                        <FeedbackButton
-                          trackId={track.id}
-                          userId={userData?.id}
-                          onFeedbackSubmitted={handleFeedbackSubmitted}
-                        />
-                      </div>
-                    </div>
-                  </li>
+                  <TrackCard
+                    key={track.id}
+                    track={track}
+                    index={index}
+                    isRecommendation={false}
+                    onStoryClick={handleTrackClick}
+                    isLoading={isLoading}
+                    clickedTrackId={clickedTrackId}
+                    userData={userData}
+                    onFeedbackSubmitted={handleFeedbackSubmitted}
+                    expanded={false}
+                    onToggleExpand={() => {}}
+                  />
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p style={styles.loadingIndicator}>No top tracks found. Try listening to more music on Spotify!</p>
+              <div style={styles.loadingSpinner}>No top tracks found. Try listening to more music on Spotify!</div>
             )}
           </div>
         )}
 
-        {/* Story Modal */}
-        {isModalOpen && (
-          <StoryModal
-            story={story}
-            trackId={trackId}
-            onClose={() => {
-              setIsModalOpen(false);
-              setStory(null);
-              setTrackId(null);
-            }}
-          />
-        )}
-
-        {/* Display recommendations if available */}
         {recommendations.length > 0 && (
           <div style={styles.recommendationsSection}>
             <h2 style={styles.sectionTitle}>Your Personalized Recommendations</h2>
-
-            {/* Display audio features target for the mood */}
+            
             {audioFeaturesData && (
               <div style={styles.moodFeatures}>
-                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Target Audio Profile</h3>
+                <h3>Target Audio Profile</h3>
                 <AudioFeaturesDisplay features={audioFeaturesData} />
               </div>
             )}
@@ -704,216 +797,54 @@ export default function Home() {
               </div>
             )}
 
-            <ul style={styles.recommendationsList}>
+            <div style={styles.tracksList}>
               {recommendations.map((track, index) => (
-                <li key={track.id} style={styles.trackItem}>
-                  <div style={styles.trackWithFeedback}>
-                    <div style={styles.trackMainContent}>
-                      <span style={styles.trackNumber}>{index + 1}</span>
-                      {track.album.images && track.album.images.length > 0 && (
-                        <Image
-                          src={track.album.images[2].url}
-                          alt={track.album.name}
-                          width={40}
-                          height={40}
-                          style={styles.trackImage}
-                          unoptimized={true}
-                        />
-                      )}
-                      <div style={styles.trackInfo}>
-                        <div style={styles.trackName}>
-                          {track.name}
-                          <button
-                            onClick={() => toggleTrackDetails(track.id)}
-                            style={styles.detailsButton}
-                          >
-                            {expandedTrackId === track.id ? 'Hide Details' : 'Show Details'}
-                          </button>
-                        </div>
-                        <div style={styles.trackArtist}>
-                          {track.artists.map(artist => artist.name).join(', ')}
-                        </div>
-
-                        {/* Track details section with audio features */}
-                        <div
-                          style={{
-                            ...styles.trackDetails,
-                            ...(expandedTrackId === track.id ? styles.trackDetailsOpen : {})
-                          }}
-                        >
-                          {track.audioFeatures && (
-                            <AudioFeaturesDisplay features={track.audioFeatures} />
-                          )}
-
-                          {/* Lyrics sentiment (if available) */}
-                          {track.lyricsInfo && (
-                            <div style={{ marginTop: '0.5rem' }}>
-                              <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem' }}>
-                                Lyrics Sentiment
-                              </div>
-                              <div style={{
-                                padding: '0.3rem 0.6rem',
-                                borderRadius: '4px',
-                                display: 'inline-block',
-                                backgroundColor: track.lyricsInfo.sentiment === 'positive'
-                                  ? 'rgba(29, 185, 84, 0.2)'
-                                  : 'rgba(255, 85, 85, 0.2)',
-                                color: track.lyricsInfo.sentiment === 'positive'
-                                  ? '#1DB954'
-                                  : '#ff5555',
-                                fontSize: '0.8rem'
-                              }}>
-                                {track.lyricsInfo.sentiment.charAt(0).toUpperCase() + track.lyricsInfo.sentiment.slice(1)}
-                              </div>
-
-                              {track.lyricsInfo.themes && track.lyricsInfo.themes.length > 0 && (
-                                <div style={{ marginTop: '0.5rem' }}>
-                                  <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem' }}>
-                                    Themes
-                                  </div>
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
-                                    {track.lyricsInfo.themes.map((theme, i) => (
-                                      <span key={i} style={{
-                                        padding: '0.2rem 0.5rem',
-                                        borderRadius: '20px',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                                        fontSize: '0.7rem'
-                                      }}>
-                                        {theme}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Spotify player link */}
-                          <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
-                            <a
-                              href={track.external_urls.spotify}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                color: '#1DB954',
-                                fontSize: '0.8rem',
-                                textDecoration: 'none'
-                              }}
-                            >
-                              Play on Spotify
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Track action buttons */}
-                      <div style={styles.trackActionsContainer}>
-                        <div style={styles.trackMainActions}>
-                          {/* Story generation button */}
-                          <button
-                            onClick={() => {
-                              setClickedTrackId(track.id);
-                              setIsLoading(true);
-                              handleTrackClick(track.id, track.artists[0].name, track.name);
-                            }}
-                            style={{
-                              ...styles.button,
-                              ...(isLoading && clickedTrackId === track.id ? styles.buttonDisabled : {}),
-                              ...(hoveredTrackId === track.id ? styles.trackItemHover : {})
-                            }}
-                            onMouseEnter={() => setHoveredTrackId(track.id)}
-                            onMouseLeave={() => setHoveredTrackId(null)}
-                            disabled={isLoading && clickedTrackId === track.id}
-                            aria-label="生成歌曲故事"
-                          >
-                            {isLoading && clickedTrackId === track.id ? '生成中...' : '生成故事'}
-                          </button>
-
-                          {/* Spotify Listen button */}
-                          <a
-                            href={track.external_urls.spotify}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={styles.spotifyListenButton}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#1aa34a';
-                              e.currentTarget.style.transform = 'translateY(-2px)';
-                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(29, 185, 84, 0.3)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = '#1DB954';
-                              e.currentTarget.style.transform = 'none';
-                              e.currentTarget.style.boxShadow = 'none';
-                            }}
-                          >
-                            Listen on Spotify
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Feedback Button for Recommendations */}
-                    <div style={styles.feedbackContainer}>
-                      <FeedbackButton
-                        trackId={track.id}
-                        userId={userData?.id}
-                        onFeedbackSubmitted={handleFeedbackSubmitted}
-                      />
-                    </div>
-                  </div>
-                </li>
+                <TrackCard
+                  key={track.id}
+                  track={track}
+                  index={index}
+                  isRecommendation={true}
+                  onStoryClick={handleTrackClick}
+                  isLoading={isLoading}
+                  clickedTrackId={clickedTrackId}
+                  userData={userData}
+                  onFeedbackSubmitted={handleFeedbackSubmitted}
+                  expanded={expandedTrackId === track.id}
+                  onToggleExpand={toggleTrackDetails}
+                />
               ))}
-            </ul>
+            </div>
 
-            {/* AI Insights */}
             {aiInsights && aiInsights.length > 0 && (
-              <div style={styles.insightsContainer}>
-                <div style={styles.insightTitle}>AI Music Insights</div>
-                <ul style={styles.insightsList}>
+              <div style={styles.insightsSection}>
+                <div style={styles.insightsTitle}>AI Music Insights</div>
+                <div style={styles.insightsList}>
                   {aiInsights.map((insight, index) => (
-                    <li key={index} style={styles.insightItem}>
+                    <div key={index} style={styles.insightItem}>
                       {insight}
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 
             {generatedPlaylist && (
-              <div style={styles.playlistInfo}>
+              <div style={styles.playlistSection}>
                 <div style={styles.playlistTitle}>
                   Playlist Created: {generatedPlaylist.name}
                 </div>
-                <p>{generatedPlaylist.description}</p>
-                <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                  <a
-                    href={generatedPlaylist.external_urls.spotify}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={styles.playlistLink}
-                  >
-                    Open in Spotify
-                  </a>
+                <p style={styles.playlistDescription}>{generatedPlaylist.description}</p>
+                <div style={styles.playlistActions}>
                   <a
                     href={generatedPlaylist.external_urls.spotify}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                      ...styles.spotifyListenButton,
-                      marginLeft: 0
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#1aa34a';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(29, 185, 84, 0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#1DB954';
-                      e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.boxShadow = 'none';
+                      ...styles.actionButton,
+                      ...styles.spotifyPlayButton
                     }}
                   >
-                    Listen to Playlist
+                    Open in Spotify
                   </a>
                 </div>
               </div>
@@ -921,6 +852,18 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {isModalOpen && (
+        <StoryModal
+          story={story}
+          trackId={trackId}
+          onClose={() => {
+            setIsModalOpen(false);
+            setStory(null);
+            setTrackId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
