@@ -28,11 +28,21 @@ async function getUserFeedbackData(userId) {
     const { db, client: dbClient } = await connectToDatabase();
     client = dbClient;
 
-    // Get user's feedback history
-    const userFeedback = await db.collection('userFeedback').find({ userId }).toArray();
+    console.log(`Querying feedback for userId: ${userId}`);
+
+    // Get user's feedback history - ensure userId is treated as string
+    const userFeedback = await db.collection('userFeedback').find({ 
+      userId: userId.toString() 
+    }).toArray();
     
-    // Get user's computed preferences
-    const userPreferences = await db.collection('userPreferences').findOne({ userId });
+    console.log(`Raw feedback query result: ${userFeedback.length} items`);
+
+    // Get user's computed preferences - ensure userId is treated as string
+    const userPreferences = await db.collection('userPreferences').findOne({ 
+      userId: userId.toString() 
+    });
+
+    console.log(`User preferences found: ${userPreferences ? 'Yes' : 'No'}`);
 
     // Organize feedback by track ID
     const trackFeedback = {};
@@ -72,7 +82,7 @@ async function getUserFeedbackData(userId) {
         .map(([genre, _]) => genre);
     }
 
-    return {
+    const result = {
       trackFeedback,
       userPreferences,
       likedArtists,
@@ -81,6 +91,9 @@ async function getUserFeedbackData(userId) {
       dislikedGenres,
       totalFeedbacks: userFeedback.length
     };
+
+    console.log(`Returning feedback data: ${result.totalFeedbacks} feedbacks, ${likedArtists.length} liked artists`);
+    return result;
 
   } catch (error) {
     console.error('Error fetching user feedback data:', error);
@@ -184,9 +197,12 @@ function calculateTrackPreferenceScore(track, feedbackData) {
   return { score, reasons };
 }
 
-export async function analyzeTracksWithAI(tracks, prompt, mood, userId = null, targetCount = 40) {
+export async function analyzeTracksWithAI(tracks, prompt, mood, userId = null, targetCount = 50) {
   try {
-    console.log(`Analyzing ${tracks.length} tracks with AI (User: ${userId || 'anonymous'}) to select ${targetCount} that match the prompt`);
+    // Fix #1: Ensure targetCount is a number
+    const numericTargetCount = typeof targetCount === 'number' ? targetCount : 50;
+    
+    console.log(`Analyzing ${tracks.length} tracks with AI (User: ${userId || 'anonymous'}) to select ${numericTargetCount} that match the prompt`);
     
     // Fetch user feedback data if userId is provided
     let feedbackData = {
@@ -251,7 +267,7 @@ export async function analyzeTracksWithAI(tracks, prompt, mood, userId = null, t
     let selectedTracks = [];
 
     for (const chunk of chunks) {
-      if (selectedTracks.length >= targetCount) break;
+      if (selectedTracks.length >= numericTargetCount) break;
 
       try {
         // Prepare user preference context for AI
@@ -285,7 +301,7 @@ Your task:
 - Balance mood matching with user preference satisfaction
 
 Return ONLY a valid JSON object with:
-- "selected": an array of track IDs (max ${Math.min(targetCount - selectedTracks.length, 20)}) that best balance mood alignment and user preferences
+- "selected": an array of track IDs (max ${Math.min(numericTargetCount - selectedTracks.length, 20)}) that best balance mood alignment and user preferences
 - "reasons": an object where each selected track ID maps to a concise explanation including both mood fit and preference alignment
 
 Be selective. Prioritize user satisfaction through personalized recommendations.
@@ -377,10 +393,11 @@ ${JSON.stringify(chunk, null, 2)}
       return processedTracks
         .filter(track => track.userPreferenceScore > -10)
         .sort((a, b) => b.userPreferenceScore - a.userPreferenceScore)
-        .slice(0, Math.min(targetCount, processedTracks.length));
+        .slice(0, Math.min(numericTargetCount, processedTracks.length));
     }
     
     // Ultimate fallback: return a random selection
-    return tracks.slice(0, Math.min(targetCount, tracks.length));
+    const numericTargetCount = typeof targetCount === 'number' ? targetCount : 50;
+    return tracks.slice(0, Math.min(numericTargetCount, tracks.length));
   }
 }

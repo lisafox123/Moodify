@@ -4,41 +4,63 @@ import { NextResponse } from 'next/server';
 import { analyzeMood } from './analyzeMood.js';
 import { fetchLibrary } from './fetchLibrary.js';
 import { analyzeTracksWithAI } from './aiTrackAnalyzer.js';
-import { enhancedFeatureAnalysis } from './auddAnalyzer.js';
+import { enhancedFeatureAnalysis } from './auddAnalyzer.js'; // This will use the new parallel version
 import { evaluateTrackAlignment } from './trackEvaluator.js';
 import { generateFallbackRecommendations } from './fallbackRecommendations.js';
 import { generateClassicRecommendations } from './classicRecommendations.js';
 import { createSpotifyPlaylist } from './spotifyHelpers.js';
-import { 
-  validateRequestParams, 
-  generatePlaylistStory, 
-  createAudioFeatures 
+import {
+  validateRequestParams,
+  generatePlaylistStory,
+  createAudioFeatures
 } from './utils.js';
+
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    
+
     // Validate request parameters
     const validation = validateRequestParams(body);
     if (!validation.isValid) {
-      return NextResponse.json({ 
-        error: validation.errors.join(', ') 
+      return NextResponse.json({
+        error: validation.errors.join(', ')
       }, { status: 400 });
     }
 
-    const { 
-      prompt, 
-      token, 
-      seedTracks = [], 
-      customStory = "", 
-      createPlaylistFlag = false, 
-      playlistName = "", 
+    const {
+      prompt,
+      token,
+      seedTracks = [],
+      customStory = "",
+      createPlaylistFlag = false,
+      playlistName = "",
       manualTracks = [],
       recommendationType = "mood",
       outputFormat = "track",
       qualityCheck = true
     } = body;
+
+    // Add this function to get userId from token
+    async function getUserIdFromToken(token) {
+      try {
+        const response = await fetch('https://api.spotify.com/v1/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          return userData.id;
+        }
+      } catch (error) {
+        console.error('Failed to get user ID from token:', error);
+      }
+
+      return null;
+    }
+
+    const userId = token ? await getUserIdFromToken(token) : null;
+
 
     console.log("=== MUSIC RECOMMENDATION API REQUEST ===");
     console.log(`Type: ${recommendationType}, Format: ${outputFormat}, Prompt: "${prompt}"`);
@@ -54,8 +76,8 @@ export async function POST(request) {
           outputFormat: 'playlist'
         });
       } catch (error) {
-        return NextResponse.json({ 
-          error: error.message || 'Failed to create playlist' 
+        return NextResponse.json({
+          error: error.message || 'Failed to create playlist'
         }, { status: 500 });
       }
     }
@@ -66,7 +88,7 @@ export async function POST(request) {
 
     // WORKFLOW BRANCHES
     if (recommendationType === "mood") {
-      const result = await processMoodRecommendations(prompt, token, outputFormat, qualityCheck);
+      const result = await processMoodRecommendationsOptimized(prompt, token, outputFormat, qualityCheck, userId);
       recommendations = result.recommendations;
       mood = result.mood;
       processingMetadata = result.metadata;
@@ -78,7 +100,7 @@ export async function POST(request) {
 
     // Validate we have recommendations
     if (!recommendations || recommendations.length === 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Could not generate recommendations with the provided parameters',
         metadata: processingMetadata
       }, { status: 404 });
@@ -86,14 +108,14 @@ export async function POST(request) {
 
     // Generate story and audio features
     const story = await generatePlaylistStory(
-      recommendations, 
-      prompt, 
-      mood, 
-      customStory, 
-      recommendationType, 
+      recommendations,
+      prompt,
+      mood,
+      customStory,
+      recommendationType,
       outputFormat
     );
-    
+
     const audioFeatures = createAudioFeatures(mood);
 
     console.log(`=== REQUEST COMPLETED: ${recommendations.length} recommendations generated ===`);
@@ -108,27 +130,27 @@ export async function POST(request) {
       outputFormat: outputFormat,
       processingMetadata: processingMetadata
     });
-    
+
   } catch (error) {
     console.error('API error:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: error.message || 'Internal server error',
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
 }
 
-// ENHANCED MOOD RECOMMENDATION WORKFLOW
-async function processMoodRecommendations(prompt, token, outputFormat, qualityCheck) {
+// OPTIMIZED MOOD RECOMMENDATION WORKFLOW WITH PARALLEL AUDD.IO PROCESSING
+async function processMoodRecommendationsOptimized(prompt, token, outputFormat, qualityCheck, userId) {
   const metadata = {
-    workflow: "mood",
+    workflow: "mood_optimized",
     steps: [],
     timing: { start: Date.now() }
   };
 
   try {
-    console.log("=== STARTING ENHANCED MOOD RECOMMENDATION WORKFLOW ===");
-    
+    console.log("=== STARTING OPTIMIZED MOOD RECOMMENDATION WORKFLOW ===");
+
     // Step 1: Analyze user's mood with enhanced prompting
     console.log("Step 1: Enhanced mood analysis...");
     const stepStart = Date.now();
@@ -140,7 +162,7 @@ async function processMoodRecommendations(prompt, token, outputFormat, qualityCh
       duration: Date.now() - stepStart
     });
     console.log(`Detected mood: ${mood}`);
-    
+
     // Step 2: Fetch user's library with smart sampling
     console.log("Step 2: Smart library fetching...");
     const libStart = Date.now();
@@ -152,7 +174,7 @@ async function processMoodRecommendations(prompt, token, outputFormat, qualityCh
       duration: Date.now() - libStart
     });
     console.log(`Retrieved ${libraryTracks.length} tracks from library`);
-    
+
     if (libraryTracks.length === 0) {
       console.warn("No tracks found in user's library, using enhanced Spotify recommendations");
       const fallbackStart = Date.now();
@@ -164,19 +186,19 @@ async function processMoodRecommendations(prompt, token, outputFormat, qualityCh
         result: `${fallbackTracks.length} tracks`,
         duration: Date.now() - fallbackStart
       });
-      
+
       return {
         recommendations: fallbackTracks,
         mood: mood,
         metadata: { ...metadata, timing: { ...metadata.timing, total: Date.now() - metadata.timing.start } }
       };
     }
-    
+
     // Step 3: Enhanced AI analysis with semantic understanding
     console.log("Step 3: Enhanced AI track analysis...");
     const aiStart = Date.now();
     const targetCount = outputFormat === 'track' ? 5 : 20;
-    const aiSelectedTracks = await analyzeTracksWithEnhancedAI(libraryTracks, prompt, mood, targetCount);
+    const aiSelectedTracks = await analyzeTracksWithEnhancedAI(libraryTracks, prompt, mood, targetCount, userId);
     metadata.steps.push({
       step: 3,
       name: "ai_track_analysis",
@@ -184,31 +206,35 @@ async function processMoodRecommendations(prompt, token, outputFormat, qualityCh
       duration: Date.now() - aiStart
     });
     console.log(`AI selected ${aiSelectedTracks.length} tracks`);
-    
+
     if (aiSelectedTracks.length === 0) {
       console.warn("AI couldn't find matching tracks, using enhanced fallback");
       const fallbackCount = outputFormat === 'track' ? 1 : 10;
       const fallbackTracks = await generateFallbackRecommendations(token, prompt, mood, [], fallbackCount);
-      
+
       return {
         recommendations: fallbackTracks,
         mood: mood,
         metadata: { ...metadata, timing: { ...metadata.timing, total: Date.now() - metadata.timing.start } }
       };
     }
-    
-    // Step 4: Enhanced feature analysis with better error handling
-    console.log("Step 4: Enhanced audio feature analysis...");
+
+    // Step 4: PARALLEL Audd.io analysis with simultaneous processing
+    console.log("Step 4: PARALLEL Audd.io audio feature analysis...");
     const featureStart = Date.now();
-    const tracksWithFeatures = await enhancedFeatureAnalysisImproved(aiSelectedTracks, token);
+
+    // This now uses parallel processing instead of sequential
+    const tracksWithFeatures = await enhancedFeatureAnalysisParallel(aiSelectedTracks, token);
+
     metadata.steps.push({
       step: 4,
-      name: "feature_analysis",
-      result: `${tracksWithFeatures.length} tracks enhanced`,
-      duration: Date.now() - featureStart
+      name: "parallel_audd_analysis",
+      result: `${tracksWithFeatures.length} tracks enhanced (parallel processing)`,
+      duration: Date.now() - featureStart,
+      parallelProcessing: true
     });
-    console.log(`Enhanced ${tracksWithFeatures.length} tracks with audio features`);
-    
+    console.log(`Enhanced ${tracksWithFeatures.length} tracks with parallel Audd.io analysis`);
+
     // Step 5: Semantic evaluation and alignment
     console.log("Step 5: Semantic track alignment evaluation...");
     const evalStart = Date.now();
@@ -220,33 +246,33 @@ async function processMoodRecommendations(prompt, token, outputFormat, qualityCh
       duration: Date.now() - evalStart
     });
     console.log(`Found ${evaluation.highQualityTracks.length} high-quality tracks`);
-    
+
     let finalTracks = evaluation.highQualityTracks;
-    
+
     // Step 6: Quality assurance and fallback integration
     const minRequired = outputFormat === 'track' ? 1 : 5;
     if (finalTracks.length < minRequired) {
       console.log(`Step 6: Fallback integration (have ${finalTracks.length}, need ${minRequired})`);
-      
+
       const fallbackTracks = await generateFallbackRecommendations(
-        token, 
-        prompt, 
-        mood, 
-        finalTracks, 
+        token,
+        prompt,
+        mood,
+        finalTracks,
         minRequired - finalTracks.length
       );
-      
+
       finalTracks = [...finalTracks, ...fallbackTracks];
       console.log(`Added ${fallbackTracks.length} fallback tracks, total: ${finalTracks.length}`);
     }
-    
+
     // Ensure we have at least something to return
     if (finalTracks.length === 0) {
       console.warn("Final fallback activation");
       const ultimateFallback = outputFormat === 'track' ? 1 : 10;
       finalTracks = await generateFallbackRecommendations(token, prompt, mood, [], ultimateFallback);
     }
-    
+
     // Step 7: Format output based on type
     let result;
     if (outputFormat === 'track') {
@@ -256,23 +282,25 @@ async function processMoodRecommendations(prompt, token, outputFormat, qualityCh
     }
 
     metadata.timing.total = Date.now() - metadata.timing.start;
-    
+
+    console.log(`=== WORKFLOW COMPLETED IN ${metadata.timing.total}ms WITH PARALLEL PROCESSING ===`);
+
     return {
       recommendations: result,
       mood: mood,
       metadata: metadata
     };
-    
+
   } catch (error) {
-    console.error('Error in enhanced mood recommendation workflow:', error);
+    console.error('Error in optimized mood recommendation workflow:', error);
     metadata.error = error.message;
-    
+
     // Emergency fallback
     try {
       console.log("Attempting emergency fallback...");
       const emergencyCount = outputFormat === 'track' ? 1 : 10;
       const emergencyTracks = await generateFallbackRecommendations(token, prompt, "balanced", [], emergencyCount);
-      
+
       return {
         recommendations: emergencyTracks,
         mood: "balanced",
@@ -295,7 +323,7 @@ async function processClassicRecommendations(prompt, token, outputFormat) {
 
   try {
     console.log("=== STARTING ENHANCED CLASSIC RECOMMENDATION WORKFLOW ===");
-    
+
     // Step 1-5: Use the new enhanced classic recommendations system
     console.log("Step 1-5: Enhanced classic song generation pipeline...");
     const classicStart = Date.now();
@@ -307,15 +335,15 @@ async function processClassicRecommendations(prompt, token, outputFormat) {
       duration: Date.now() - classicStart
     });
     console.log(`Generated ${classicTracks.length} classic recommendations`);
-    
+
     if (classicTracks.length === 0) {
       throw new Error("Could not find classic songs matching the prompt");
     }
-    
+
     // Step 6: Format output based on type and user requirements
     let result;
     const userRequestedCount = extractCountFromPrompt(prompt);
-    
+
     if (outputFormat === 'track') {
       // Return single best classic track
       result = classicTracks.length > 0 ? [classicTracks[0]] : [];
@@ -326,12 +354,12 @@ async function processClassicRecommendations(prompt, token, outputFormat) {
     }
 
     metadata.timing.total = Date.now() - metadata.timing.start;
-    
+
     return {
       recommendations: result,
       metadata: metadata
     };
-    
+
   } catch (error) {
     console.error('Error in enhanced classic recommendation workflow:', error);
     metadata.error = error.message;
@@ -348,21 +376,21 @@ async function analyzeMoodEnhanced(prompt) {
     const response = await fetch('/api/openai/analyze-mood', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         prompt,
         enhanced: true,
         context: "music_recommendation"
       })
     });
-    
+
     if (!response.ok) {
       console.warn("Enhanced mood analysis failed, falling back to basic");
       return await analyzeMood(prompt);
     }
-    
+
     const data = await response.json();
     return data.mood || "balanced";
-    
+
   } catch (error) {
     console.error("Enhanced mood analysis error:", error);
     return await analyzeMood(prompt);
@@ -373,15 +401,15 @@ async function analyzeMoodEnhanced(prompt) {
 async function fetchLibraryEnhanced(token, mood) {
   try {
     const allTracks = await fetchLibrary(token);
-    
+
     if (allTracks.length <= 100) {
       return allTracks; // Return all if small library
     }
-    
+
     // Smart sampling based on mood and audio features
     const sampledTracks = await smartSampleLibrary(allTracks, mood, 200);
     return sampledTracks;
-    
+
   } catch (error) {
     console.error("Enhanced library fetch failed:", error);
     return await fetchLibrary(token);
@@ -401,14 +429,14 @@ async function smartSampleLibrary(tracks, mood, targetCount) {
       angry: { energy: [0.7, 1.0], valence: [0.0, 0.3] },
       balanced: { valence: [0.2, 0.8], energy: [0.2, 0.8] }
     };
-    
+
     const preferences = moodPreferences[mood] || moodPreferences.balanced;
-    
+
     // Score tracks based on mood preferences
     const scoredTracks = tracks.map(track => {
       let score = 0;
       let factors = 0;
-      
+
       Object.entries(preferences).forEach(([feature, [min, max]]) => {
         if (track.audio_features && track.audio_features[feature] !== undefined) {
           const value = track.audio_features[feature];
@@ -418,25 +446,25 @@ async function smartSampleLibrary(tracks, mood, targetCount) {
           factors += 1;
         }
       });
-      
+
       // Normalize score
       const normalizedScore = factors > 0 ? score / factors : 0.5;
-      
+
       return {
         ...track,
         mood_score: normalizedScore
       };
     });
-    
+
     // Sort by mood score and add some randomness
     scoredTracks.sort((a, b) => {
       const scoreDiff = b.mood_score - a.mood_score;
       const randomFactor = (Math.random() - 0.5) * 0.1; // Small random factor
       return scoreDiff + randomFactor;
     });
-    
+
     return scoredTracks.slice(0, targetCount);
-    
+
   } catch (error) {
     console.error("Smart sampling failed:", error);
     // Fallback to random sampling
@@ -446,46 +474,49 @@ async function smartSampleLibrary(tracks, mood, targetCount) {
 }
 
 // Enhanced AI track analysis with semantic understanding
-async function analyzeTracksWithEnhancedAI(tracks, prompt, mood, targetCount) {
+async function analyzeTracksWithEnhancedAI(tracks, prompt, mood, targetCount, userId) {
   try {
-    return await analyzeTracksWithAI(tracks, prompt, mood, targetCount, {
+    return await analyzeTracksWithAI(tracks, prompt, mood, userId, targetCount, {
       enhanced: true,
       useSemanticSimilarity: true,
       qualityThreshold: 0.7
     });
   } catch (error) {
     console.error("Enhanced AI analysis failed:", error);
-    return await analyzeTracksWithAI(tracks, prompt, mood, targetCount);
+    return await analyzeTracksWithAI(tracks, prompt, mood, userId, targetCount);
   }
 }
 
-// Improved feature analysis with better error handling
-async function enhancedFeatureAnalysisImproved(tracks, token) {
+// PARALLEL FEATURE ANALYSIS - This is the key optimization
+async function enhancedFeatureAnalysisParallel(tracks, token) {
   try {
+    console.log(`Starting PARALLEL Audd.io analysis for ${tracks.length} tracks...`);
+    const startTime = Date.now();
+
+    // Use the new parallel Audd.io analysis
     const results = await enhancedFeatureAnalysis(tracks, token);
-    
-    // Validate results and add fallback data for missing features
-    const validatedResults = results.map(track => {
-      if (!track.audio_features) {
-        // Generate synthetic audio features based on track metadata
-        track.audio_features = generateSyntheticAudioFeatures(track);
-        track.features_source = 'synthetic';
-      } else {
-        track.features_source = 'spotify';
-      }
-      return track;
-    });
-    
-    return validatedResults;
-    
+
+    const analysisTime = Date.now() - startTime;
+    console.log(`Parallel Audd.io analysis completed in ${analysisTime}ms`);
+
+    // Add timing metadata to each track
+    const resultsWithTiming = results.map(track => ({
+      ...track,
+      parallelAnalysisTime: analysisTime,
+      analysisMethod: 'parallel_audd'
+    }));
+
+    return resultsWithTiming;
+
   } catch (error) {
-    console.error("Enhanced feature analysis failed:", error);
-    
+    console.error("Parallel feature analysis failed:", error);
+
     // Fallback: add synthetic features to all tracks
     return tracks.map(track => ({
       ...track,
-      audio_features: generateSyntheticAudioFeatures(track),
-      features_source: 'synthetic_fallback'
+      audioFeatures: generateSyntheticAudioFeatures(track),
+      features_source: 'synthetic_fallback',
+      analysisMethod: 'fallback'
     }));
   }
 }
@@ -495,13 +526,13 @@ function generateSyntheticAudioFeatures(track) {
   // Use track name, artist, and available metadata to make educated guesses
   const trackName = (track.name || '').toLowerCase();
   const artistName = (track.artists?.[0]?.name || '').toLowerCase();
-  
+
   // Basic heuristics for common words/artists
   let valence = 0.5; // neutral default
   let energy = 0.5;
   let danceability = 0.5;
   let acousticness = 0.3;
-  
+
   // Mood-based adjustments
   if (trackName.includes('sad') || trackName.includes('cry') || trackName.includes('blue')) {
     valence -= 0.3;
@@ -524,10 +555,10 @@ function generateSyntheticAudioFeatures(track) {
     acousticness += 0.4;
     energy -= 0.2;
   }
-  
+
   // Clamp values to valid range
   const clamp = (val) => Math.max(0, Math.min(1, val));
-  
+
   return {
     valence: clamp(valence),
     energy: clamp(energy),
@@ -564,9 +595,9 @@ async function generateEnhancedSpotifyRecommendations(token, mood, prompt, targe
       { seed_genres: getMoodGenres(mood), limit: Math.ceil(targetCount / 2) },
       { seed_genres: getPromptGenres(prompt), limit: Math.floor(targetCount / 2) }
     ];
-    
+
     const allRecommendations = [];
-    
+
     for (const strategy of strategies) {
       try {
         const params = new URLSearchParams({
@@ -574,11 +605,11 @@ async function generateEnhancedSpotifyRecommendations(token, mood, prompt, targe
           market: 'US',
           ...getMoodAudioFeatures(mood)
         });
-        
+
         const response = await fetch(`https://api.spotify.com/v1/recommendations?${params}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           allRecommendations.push(...(data.tracks || []));
@@ -587,11 +618,11 @@ async function generateEnhancedSpotifyRecommendations(token, mood, prompt, targe
         console.warn("Recommendation strategy failed:", strategyError.message);
       }
     }
-    
+
     // Remove duplicates and return
     const unique = removeDuplicateSpotifyTracks(allRecommendations);
     return unique.slice(0, targetCount);
-    
+
   } catch (error) {
     console.error("Enhanced Spotify recommendations failed:", error);
     return await generateFallbackRecommendations(token, prompt, mood, [], targetCount);
@@ -609,13 +640,13 @@ function getMoodGenres(mood) {
     angry: ['metal', 'punk', 'hard-rock'],
     balanced: ['pop', 'rock', 'indie']
   };
-  
+
   return moodGenres[mood] || moodGenres.balanced;
 }
 
 function getPromptGenres(prompt) {
   const lowerPrompt = prompt.toLowerCase();
-  
+
   if (lowerPrompt.includes('rock')) return ['rock', 'alternative'];
   if (lowerPrompt.includes('pop')) return ['pop', 'dance'];
   if (lowerPrompt.includes('jazz')) return ['jazz', 'blues'];
@@ -623,7 +654,7 @@ function getPromptGenres(prompt) {
   if (lowerPrompt.includes('hip hop') || lowerPrompt.includes('rap')) return ['hip-hop', 'rap'];
   if (lowerPrompt.includes('country')) return ['country'];
   if (lowerPrompt.includes('electronic')) return ['electronic', 'techno'];
-  
+
   return ['pop', 'rock']; // default
 }
 
@@ -637,7 +668,7 @@ function getMoodAudioFeatures(mood) {
     angry: { target_energy: 0.9, target_valence: 0.2 },
     balanced: { target_valence: 0.5, target_energy: 0.5 }
   };
-  
+
   return features[mood] || features.balanced;
 }
 
