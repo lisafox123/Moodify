@@ -1,476 +1,11 @@
-
 "use client";
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import AudioFeaturesDisplay from './components/AudioFeaturesDisplay';
 import StoryModal from './components/StoryModal';
-
-// Define styles directly in the component
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: '#0f0f1a',
-    color: '#7A7687',
-  },
-  button: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#ff7e5f',
-    background: 'linear-gradient(90deg, #C7C1DB, #9E94BE)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    marginTop: '1.5rem',
-  },
-  buttonHover: {
-    transform: 'translateY(-2px)',
-    boxShadow: '0 6px 20px rgba(115, 102, 159, 0.3)',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-    cursor: 'not-allowed',
-    background: '#555',
-  },
-  navbar: {
-    width: '100%',
-    padding: '1rem 2rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-    position: 'sticky',
-    top: 0,
-    zIndex: 10,
-    backgroundColor: '#C7C1DB',
-  },
-  logoContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-  },
-  logoText: {
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    background: 'linear-gradient(90deg, #f9b42a, #e7e789)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    margin: 0,
-  },
-  navRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-  },
-  spotifyButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#E7E789', // Spotify green
-    color: '#73669F',
-    border: 'none',
-    borderRadius: '2rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    transition: 'all 0.2s ease',
-  },
-  userProfile: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-  },
-  userName: {
-    fontWeight: '500',
-    fontSize: '1rem',
-    color: '#7A7687',
-  },
-  userAvatar: {
-    borderRadius: '50%',
-    border: '2px solid rgba(255, 255, 255, 0.2)',
-  },
-  main: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '3rem 1.5rem',
-    backgroundColor: '#FFFFF2',
-  },
-  inputContainer: {
-    width: '100%',
-    maxWidth: '800px',
-    marginTop: '1rem',
-  },
-  promptInput: {
-    width: '100%',
-    padding: '1.25rem',
-    fontSize: '1.125rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.05)',
-    color: '#7A7687',
-    border: '1px solid rgba(0, 0, 255, 0.1)',
-    borderRadius: '12px',
-    outline: 'none',
-    transition: 'all 0.3s ease',
-  },
-  promptInputFocus: {
-    border: '1px solid rgba(115, 102, 159, 0.5)',
-    boxShadow: '0 0 0 4px rgba(115, 102, 159, 0.1)',
-  },
-  promptLabel: {
-    display: 'block',
-    marginBottom: '0.75rem',
-    fontSize: '1.125rem',
-    fontWeight: '500',
-  },
-  title: {
-    margin: 0,
-    lineHeight: 1.15,
-    fontSize: '2.5rem',
-    textAlign: 'center',
-    background: 'linear-gradient(135deg, #f6b127, #E7C889, #E7E789, #e5e53a)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    padding: '0.5rem 0',
-  },
-  description: {
-    textAlign: 'center',
-    lineHeight: '1.5',
-    fontSize: '1.25rem',
-    margin: '1rem 0 2rem 0',
-    opacity: 0.9,
-    maxWidth: '600px',
-  },
-  error: {
-    color: '#ff5555',
-    marginBottom: '1.5rem',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: 'rgba(255, 85, 85, 0.1)',
-    borderRadius: '8px',
-    borderLeft: '4px solid #ff5555',
-    maxWidth: '800px',
-    width: '100%',
-  },
-  switchesContainer: {
-    width: '100%',
-    maxWidth: '800px',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '1rem',
-    marginBottom: '1.5rem',
-  },
-  switchRow: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: 'calc(50% - 0.5rem)',
-    padding: '0.75rem 1rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.05)',
-    borderRadius: '8px',
-  },
-  switchLabel: {
-    fontWeight: '500',
-    fontSize: '0.875rem',
-    marginBottom: '0.5rem',
-    color: 'rgba(122, 118, 135, 0.8)',
-  },
-  // Updated toggle button styles
-  toggleButton: {
-    position: 'relative',
-    width: '120px',
-    height: '30px',
-    borderRadius: '15px',
-    background: 'rgba(30, 30, 45, 0.5)',
-    borderWidth: '1px',
-    borderStyle: 'solid',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 4px',
-    overflow: 'hidden',
-  },
-  toggleButtonActive: {
-    background: 'linear-gradient(90deg, #E8E6F0, #73669F)',
-    borderColor: 'rgba(115, 102, 159, 0.2)',
-    boxShadow: '0 0 10px rgba(115, 102, 159, 0.3)',
-  },
-  toggleButtonInactive: {
-    background: 'linear-gradient(90deg, #FFF4DD, #E7C889)',
-    borderColor: 'rgba(231, 200, 137, 0.1)',
-    boxShadow: '0 0 10px rgba(231, 200, 137, 0.2)',
-  },
-  toggleSlider: {
-    position: 'absolute',
-    width: '22px',
-    height: '22px',
-    borderRadius: '50%',
-    backgroundColor: 'white',
-    transition: 'transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease',
-    transform: 'translateX(0)',
-    boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)',
-  },
-  toggleSliderActive: {
-    transform: 'translateX(90px)',
-    backgroundColor: '#ffffff',
-    boxShadow: '0 0 8px rgba(255, 255, 255, 0.5)',
-  },
-  toggleSliderInactive: {
-    transform: 'translateX(0)',
-    backgroundColor: '#ffffff',
-    boxShadow: '0 0 8px rgba(255, 255, 255, 0.3)',
-  },
-  toggleText: {
-    position: 'absolute',
-    width: '100%',
-    textAlign: 'center',
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
-    transition: 'opacity 0.3s ease',
-    color: 'rgba(255, 255, 255, 0.8)',
-    opacity: 0.9,
-    userSelect: 'none',
-  },
-  toggleTextOn: {
-    right: '20px',
-    color: 'white',
-    textShadow: '0 0 4px rgba(0, 0, 0, 0.3)',
-  },
-  toggleTextOff: {
-    left: '20px',
-    color: 'rgba(255, 255, 255, 0.9)',
-    textShadow: '0 0 4px rgba(0, 0, 0, 0.3)',
-  },
-  optionLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '0.5rem',
-  },
-  settingsSection: {
-    width: '100%',
-    maxWidth: '800px',
-    marginBottom: '2rem',
-  },
-  sectionTitle: {
-    fontSize: '1.25rem',
-    fontWeight: '600',
-    marginBottom: '1rem',
-    width: '100%',
-    maxWidth: '800px',
-  },
-  customizeInputContainer: {
-    width: 'calc(50% - 0.5rem)',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: '8px',
-    padding: '0.75rem 1rem',
-  },
-  customInput: {
-    padding: '0.5rem 0.75rem',
-    fontSize: '0.875rem',
-    backgroundColor: 'rgba(115, 102, 159, 0.2)',
-    color: '#7A7687',
-    border: '1px solid rgba(199, 193, 219, 0.1)',
-    borderRadius: '20px',
-    outline: 'none',
-    transition: 'all 0.3s ease',
-  },
-  customInputFocus: {
-    border: '1px solid rgba(115, 102, 159, 0.5)',
-    boxShadow: '0 0 0 3px rgba(115, 102, 159, 0.1)',
-  },
-  // New styles for top tracks section
-  topTracksSection: {
-    width: '100%',
-    maxWidth: '800px',
-    marginTop: '2rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.05)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-  },
-  tracksList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: '1rem 0 0 0',
-  },
-  trackItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0.75rem 0',
-    borderBottom: '1px solid rgba(115, 102, 159, 0.1)',
-  },
-  trackItemHover: {
-    transform: 'scale(1.05)',  // 當鼠標移到時，稍微放大
-    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',  // 增加陰影效果
-  },
-  trackNumber: {
-    width: '30px',
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: 'rgba(122, 118, 135, 0.7)',
-  },
-  trackImage: {
-    borderRadius: '4px',
-    marginRight: '1rem',
-  },
-  trackInfo: {
-    flex: 1,
-  },
-  trackName: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    marginBottom: '0.25rem',
-  },
-  trackArtist: {
-    fontSize: '0.875rem',
-    color: 'rgba(122, 118, 135, 0.7)',
-  },
-  loadingIndicator: {
-    textAlign: 'center',
-    padding: '1rem',
-    color: 'rgba(122, 118, 135, 0.7)',
-  },
-  // Recommendations styles
-  recommendationsSection: {
-    width: '100%',
-    maxWidth: '800px',
-    marginTop: '2rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.05)',
-    borderRadius: '12px',
-    padding: '1.5rem',
-  },
-  storyText: {
-    fontStyle: 'italic',
-    marginBottom: '1.5rem',
-    padding: '1rem',
-    borderRadius: '8px',
-    backgroundColor: 'rgba(158, 148, 190, 0.2)',
-    lineHeight: '1.6',
-  },
-  recommendationsList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: '1rem 0 0 0',
-  },
-  playlistInfo: {
-    marginTop: '1.5rem',
-    padding: '1rem',
-    backgroundColor: 'rgba(29, 185, 84, 0.1)', // Spotify green with low opacity
-    borderRadius: '8px',
-    border: '1px solid rgba(29, 185, 84, 0.3)',
-  },
-  playlistTitle: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    marginBottom: '0.5rem',
-  },
-  playlistLink: {
-    color: '#1DB954',
-    textDecoration: 'none',
-    fontWeight: '500',
-    display: 'inline-block',
-    marginTop: '0.5rem',
-  },
-  // New styles for audio features and insights
-  trackDetails: {
-    padding: '0.75rem',
-    backgroundColor: 'rgba(0, 0, 255, 0.02)',
-    borderRadius: '8px',
-    marginTop: '0.5rem',
-    marginRight: '1rem',
-    overflow: 'hidden',
-    maxHeight: '0',
-    transition: 'max-height 0.3s ease, padding 0.3s ease',
-  },
-  trackDetailsOpen: {
-    maxHeight: '1000px',
-    padding: '0.75rem',
-  },
-  detailsButton: {
-    background: 'none',
-    border: 'none',
-    color: 'rgba(115, 102, 159, 0.6)',
-    fontSize: '0.75rem',
-    cursor: 'pointer',
-    padding: '0.25rem 0.5rem',
-    marginLeft: '0.5rem',
-    borderRadius: '4px',
-  },
-  insightsContainer: {
-    marginTop: '2rem',
-    padding: '1rem',
-    backgroundColor: 'rgba(231, 200, 137, 0.1)',
-    borderRadius: '8px',
-    border: '1px solid rgba(231, 200, 137, 0.3)',
-  },
-  insightTitle: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    marginBottom: '1rem',
-    color: 'rgba(122, 118, 135, 0.9)',
-  },
-  insightsList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-  },
-  insightItem: {
-    padding: '0.75rem',
-    marginBottom: '0.75rem',
-    backgroundColor: 'rgba(231, 200, 137, 0.2)',
-    borderRadius: '8px',
-    fontSize: '0.9rem',
-    lineHeight: '1.5',
-  },
-  moodFeatures: {
-    marginTop: '1rem',
-    marginBottom: '1.5rem',
-  },
-
-
-  spotifyListenButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#1DB954', // Spotify green
-    color: 'white',
-    border: 'none',
-    borderRadius: '2rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    transition: 'all 0.2s ease',
-    textDecoration: 'none',
-    marginLeft: '1rem',
-  },
-  spotifyListenButtonHover: {
-    backgroundColor: '#1aa34a',
-    transform: 'translateY(-2px)',
-    boxShadow: '0 4px 12px rgba(29, 185, 84, 0.3)',
-  },
-
-  // Style for track buttons container
-  trackButtonsContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    marginLeft: 'auto',
-    gap: '0.5rem',
-  }
-};
-
-
+import FeedbackButton from './components/FeedbackButton';
+import { styles } from './styles'; // Import the separated styles
 
 // Toggle Switch Component
 const ToggleSwitch = ({ isOn, label, leftText, rightText, onToggle }) => {
@@ -543,16 +78,24 @@ export default function Home() {
   const [audioFeaturesData, setAudioFeaturesData] = useState(null);
   const [expandedTrackId, setExpandedTrackId] = useState(null);
 
-  // story modal
+  // Story modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [story, setStory] = useState(null);
   const [trackId, setTrackId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [hoveredTrackId, setHoveredTrackId] = useState(null); // 追蹤 hover 的 track id
-  const [clickedTrackId, setClickedTrackId] = useState(null); // 追蹤哪個按鈕被點了
+  const [hoveredTrackId, setHoveredTrackId] = useState(null);
+  const [clickedTrackId, setClickedTrackId] = useState(null);
 
+  // Feedback callback handler
+  const handleFeedbackSubmitted = useCallback((trackId, feedback) => {
+    console.log(`Feedback submitted for track ${trackId}: ${feedback}`);
+    // You can add additional logic here if needed, such as:
+    // - Updating local state
+    // - Triggering analytics
+    // - Showing confirmation messages
+  }, []);
 
-  // Function to fetch user profile - defined with useCallback to avoid dependency warnings
+  // Function to fetch user profile
   const fetchUserProfile = useCallback(async (token) => {
     try {
       const response = await fetch('https://api.spotify.com/v1/me', {
@@ -565,7 +108,6 @@ export default function Home() {
         const profile = await response.json();
         setUserData(profile);
       } else {
-        // If we get an unauthorized response, the token is invalid
         if (response.status === 401) {
           handleLogout();
         }
@@ -577,7 +119,7 @@ export default function Home() {
     }
   }, []);
 
-  // Function to fetch top tracks - defined with useCallback
+  // Function to fetch top tracks
   const fetchTopTracks = useCallback(async () => {
     if (!accessToken) return;
 
@@ -593,7 +135,6 @@ export default function Home() {
         const data = await response.json();
         setTopTracks(data.items);
       } else {
-        // If we get an unauthorized response, the token is invalid
         if (response.status === 401) {
           handleLogout();
         }
@@ -606,7 +147,7 @@ export default function Home() {
     }
   }, [accessToken]);
 
-  // Function to exchange code for token - defined with useCallback
+  // Function to exchange code for token
   const exchangeCodeForToken = useCallback(async (code) => {
     try {
       console.log('Exchanging code for token...');
@@ -619,10 +160,8 @@ export default function Home() {
         body: JSON.stringify({ code }),
       });
 
-      // Check if the response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        // Not JSON - try to get text content for debugging
         const textContent = await response.text();
         console.error('Non-JSON response:', textContent);
         setError('Server returned invalid response format');
@@ -638,11 +177,9 @@ export default function Home() {
       }
 
       if (data.access_token) {
-        // Store token and expiry
         console.log('Token received successfully');
         localStorage.setItem('spotify_access_token', data.access_token);
 
-        // Set expiry 1 hour from now (or use expires_in from response)
         const expiryTime = Date.now() + (data.expires_in * 1000);
         localStorage.setItem('spotify_token_expiry', expiryTime.toString());
 
@@ -650,7 +187,6 @@ export default function Home() {
         setIsLoggedIn(true);
         fetchUserProfile(data.access_token);
 
-        // Clean up the URL
         window.history.replaceState({}, document.title, '/');
       } else {
         console.error('No access token in response:', data);
@@ -664,14 +200,12 @@ export default function Home() {
 
   // Function to handle logout
   const handleLogout = () => {
-    // Clear auth data
     localStorage.removeItem('spotify_access_token');
     localStorage.removeItem('spotify_token_expiry');
     setAccessToken('');
     setIsLoggedIn(false);
     setUserData(null);
     setTopTracks([]);
-    // Clear recommendations
     setRecommendations([]);
     setRecommendationStory('');
     setGeneratedPlaylist(null);
@@ -679,30 +213,23 @@ export default function Home() {
     setAudioFeaturesData(null);
   };
 
-  // Add this to your Home component's useEffect that handles the token
-  // This should replace your current code that checks for a code in the URL
-
+  // Handle authentication on component mount
   useEffect(() => {
-    // First check for tokens directly in the URL (from the callback redirect)
     const queryParams = new URLSearchParams(window.location.search);
     const accessToken = queryParams.get('access_token');
     const error = queryParams.get('error');
     const tokenReceived = queryParams.get('token_received');
     const code = queryParams.get('code');
 
-    // Handle any errors from the auth process
     if (error) {
       setError(error.replace(/_/g, ' '));
-      // Clean up the URL
       window.history.replaceState({}, document.title, '/');
     }
 
-    // If we received tokens directly in the URL
     if (accessToken && tokenReceived === 'true') {
       console.log('Token received directly in URL');
       const expiresIn = parseInt(queryParams.get('expires_in') || '3600');
 
-      // Store token and expiry
       localStorage.setItem('spotify_access_token', accessToken);
       const expiryTime = Date.now() + (expiresIn * 1000);
       localStorage.setItem('spotify_token_expiry', expiryTime.toString());
@@ -711,19 +238,16 @@ export default function Home() {
       setIsLoggedIn(true);
       fetchUserProfile(accessToken);
 
-      // Clean up the URL - remove tokens for security
       window.history.replaceState({}, document.title, '/');
       return;
     }
 
-    // If we have a code, exchange it for an access token
     if (code) {
       console.log('Code found in URL, exchanging for token');
       exchangeCodeForToken(code);
       return;
     }
 
-    // Check if we already have a valid token in localStorage
     const storedToken = localStorage.getItem('spotify_access_token');
     const tokenExpiry = localStorage.getItem('spotify_token_expiry');
 
@@ -733,7 +257,6 @@ export default function Home() {
       setIsLoggedIn(true);
       fetchUserProfile(storedToken);
     } else if (storedToken && tokenExpiry) {
-      // Token has expired, remove it
       console.log('Stored token has expired');
       localStorage.removeItem('spotify_access_token');
       localStorage.removeItem('spotify_token_expiry');
@@ -748,7 +271,6 @@ export default function Home() {
   }, [accessToken, fetchTopTracks]);
 
   const handleLogin = () => {
-    // Navigate programmatically to the login API route
     window.location.href = '/api/login';
   };
 
@@ -775,14 +297,12 @@ export default function Home() {
     setError('');
 
     try {
-      // Get the current token directly (this should be the most up-to-date)
       if (!accessToken) {
         throw new Error('No access token available. Please reconnect to Spotify.');
       }
 
       console.log('Fetching recommendations with prompt:', prompt);
 
-      // First, get recommendations
       const recommendationResponse = await fetch('/api/recommendations', {
         method: 'POST',
         headers: {
@@ -793,11 +313,10 @@ export default function Home() {
           token: accessToken,
           customStory: customMode ? customStory : '',
           seedTracks: topTracks.map(track => track.id),
-          recommendationType: moodMode ? 'mood' : 'classic', // Add recommendationType parameter
-          outputFormat: playlistMode ? 'playlist' : 'track'  // Add outputFormat parameter
+          recommendationType: moodMode ? 'mood' : 'classic',
+          outputFormat: playlistMode ? 'playlist' : 'track'
         }),
       });
-
 
       console.log('Recommendation API response status:', recommendationResponse.status);
 
@@ -805,18 +324,15 @@ export default function Home() {
         let errorMessage = `Failed to generate recommendations: ${recommendationResponse.status} ${recommendationResponse.statusText}`;
 
         try {
-          // Try to parse the error as JSON first
           const errorData = await recommendationResponse.json();
           if (errorData && errorData.error) {
             errorMessage = `Error: ${errorData.error}`;
           }
         } catch (jsonError) {
-          // If JSON parsing fails, try to get the text
           try {
             const errorText = await recommendationResponse.text();
             console.error('Recommendation API error response:', errorText);
           } catch (textError) {
-            // If both fail, just use the status
             console.error('Could not parse error response');
           }
         }
@@ -832,12 +348,11 @@ export default function Home() {
         return;
       }
 
-      // Set initial recommendation state
       setAudioFeaturesData(recommendationData.audioFeatures || null);
       setRecommendations(recommendationData.recommendations || []);
       setRecommendationStory(recommendationData.story || '');
 
-      // Now, get AI insights for the recommendations
+      // Get AI insights for the recommendations
       try {
         const aiResponse = await fetch('/api/ai-recommendations', {
           method: 'POST',
@@ -856,14 +371,11 @@ export default function Home() {
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
-
-          // Use AI data to enhance recommendations
           if (aiData.story) setRecommendationStory(aiData.story);
           if (aiData.insightfulComments) setAiInsights(aiData.insightfulComments);
         }
       } catch (aiError) {
         console.error('Error enhancing with AI:', aiError);
-        // Continue with standard recommendations
       }
 
       // Create playlist if needed
@@ -904,7 +416,8 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
-  }
+  };
+
   const getStoryForTrack = async (artist, song) => {
     setIsLoading(true);
     try {
@@ -934,7 +447,6 @@ export default function Home() {
     }
   };
 
-  // 處理按鈕點擊
   const handleTrackClick = async (trackId, artist, song) => {
     try {
       const trackStory = await getStoryForTrack(artist, song);
@@ -947,6 +459,7 @@ export default function Home() {
       setIsModalOpen(true);
     }
   };
+
   return (
     <div style={styles.container}>
       <nav style={styles.navbar}>
@@ -973,35 +486,16 @@ export default function Home() {
                   width={32}
                   height={32}
                   style={styles.userAvatar}
-                  unoptimized={true} // Add this line to bypass image optimization
+                  unoptimized={true}
                 />
               ) : (
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor: '#1DB954',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontWeight: 'bold',
-                }}>
+                <div style={styles.userAvatarPlaceholder}>
                   {userData.display_name ? userData.display_name[0].toUpperCase() : 'U'}
                 </div>
               )}
               <button
                 onClick={handleLogout}
-                style={{
-                  backgroundColor: 'transparent',
-                  border: '1px solid rgba(231, 231, 137, 0.3)',
-                  color: '#E7E789',
-                  borderRadius: '2rem',
-                  padding: '0.25rem 0.75rem',
-                  fontSize: '0.75rem',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                }}
+                style={styles.logoutButton}
               >
                 Logout
               </button>
@@ -1077,8 +571,6 @@ export default function Home() {
           </div>
         </div>
 
-
-
         <div style={styles.inputContainer}>
           <label style={styles.promptLabel} htmlFor="mood-prompt">
             Enter your mood or vibe
@@ -1122,52 +614,55 @@ export default function Home() {
             ) : topTracks.length > 0 ? (
               <ul style={styles.tracksList}>
                 {topTracks.map((track, index) => (
-                  <li
-                    key={track.id}
-                    style={{
-                      ...styles.trackItem,
-                    }}
-                  >
-                    <span style={styles.trackNumber}>{index + 1}</span>
-                    {track.album.images && track.album.images.length > 0 && (
-                      <Image
-                        src={track.album.images[2].url}
-                        alt={track.album.name}
-                        width={40}
-                        height={40}
-                        style={styles.trackImage}
-                        unoptimized={true}
-                      />
-                    )}
-                    <div style={styles.trackInfo}>
-                      <div style={styles.trackName}>{track.name}</div>
-                      <div style={styles.trackArtist}>
-                        {track.artists.map(artist => artist.name).join(', ')}
+                  <li key={track.id} style={styles.trackItem}>
+                    <div style={styles.trackWithFeedback}>
+                      <div style={styles.trackMainContent}>
+                        <span style={styles.trackNumber}>{index + 1}</span>
+                        {track.album.images && track.album.images.length > 0 && (
+                          <Image
+                            src={track.album.images[2].url}
+                            alt={track.album.name}
+                            width={40}
+                            height={40}
+                            style={styles.trackImage}
+                            unoptimized={true}
+                          />
+                        )}
+                        <div style={styles.trackInfo}>
+                          <div style={styles.trackName}>{track.name}</div>
+                          <div style={styles.trackArtist}>
+                            {track.artists.map(artist => artist.name).join(', ')}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setClickedTrackId(track.id);
+                            setIsLoading(true);
+                            handleTrackClick(track.id, track.artists[0].name, track.name);
+                          }}
+                          style={{
+                            ...styles.button,
+                            ...(isLoading ? styles.buttonDisabled : {}),
+                            ...(hoveredTrackId === track.id ? styles.trackItemHover : {})
+                          }}
+                          onMouseEnter={() => setHoveredTrackId(track.id)}
+                          onMouseLeave={() => setHoveredTrackId(null)}
+                          disabled={isLoading && clickedTrackId === track.id}
+                          aria-label="生成歌曲故事"
+                        >
+                          {isLoading && clickedTrackId === track.id ? '生成中...' : '生成故事'}
+                        </button>
+                      </div>
+                      
+                      {/* Feedback Button for Top Tracks */}
+                      <div style={styles.feedbackContainer}>
+                        <FeedbackButton
+                          trackId={track.id}
+                          userId={userData?.id}
+                          onFeedbackSubmitted={handleFeedbackSubmitted}
+                        />
                       </div>
                     </div>
-                    <button
-                      key={track.id}
-                      onClick={() => {
-                        setClickedTrackId(track.id); // 設定目前點到的track id
-                        setIsLoading(true);
-                        handleTrackClick(
-                          track.id,
-                          track.artists[0].name,
-                          track.name
-                        );
-                      }}
-                      style={{
-                        ...styles.button,
-                        ...(isLoading ? styles.buttonDisabled : {}),
-                        ...(hoveredTrackId === track.id ? styles.trackItemHover : {})
-                      }}
-                      onMouseEnter={() => setHoveredTrackId(track.id)}
-                      onMouseLeave={() => setHoveredTrackId(null)}
-                      disabled={isLoading && clickedTrackId === track.id}
-                      aria-label="生成歌曲故事"
-                    >
-                      {isLoading ? '生成中...' : '生成故事'}
-                    </button>
                   </li>
                 ))}
               </ul>
@@ -1176,6 +671,8 @@ export default function Home() {
             )}
           </div>
         )}
+
+        {/* Story Modal */}
         {isModalOpen && (
           <StoryModal
             story={story}
@@ -1187,6 +684,7 @@ export default function Home() {
             }}
           />
         )}
+
         {/* Display recommendations if available */}
         {recommendations.length > 0 && (
           <div style={styles.recommendationsSection}>
@@ -1208,160 +706,164 @@ export default function Home() {
 
             <ul style={styles.recommendationsList}>
               {recommendations.map((track, index) => (
-                <li
-                  key={track.id}
-                  style={{
-                    ...styles.trackItem,
-                  }}
-                >
-                  <span style={styles.trackNumber}>{index + 1}</span>
-                  {track.album.images && track.album.images.length > 0 && (
-                    <Image
-                      src={track.album.images[2].url}
-                      alt={track.album.name}
-                      width={40}
-                      height={40}
-                      style={styles.trackImage}
-                      unoptimized={true}
-                    />
-                  )}
-                  <div style={styles.trackInfo}>
-                    <div style={styles.trackName}>
-                      {track.name}
-                      <button
-                        onClick={() => toggleTrackDetails(track.id)}
-                        style={styles.detailsButton}
-                      >
-                        {expandedTrackId === track.id ? 'Hide Details' : 'Show Details'}
-                      </button>
-                    </div>
-                    <div style={styles.trackArtist}>
-                      {track.artists.map(artist => artist.name).join(', ')}
-                    </div>
-
-                    {/* Track details section with audio features */}
-                    <div
-                      style={{
-                        ...styles.trackDetails,
-                        ...(expandedTrackId === track.id ? styles.trackDetailsOpen : {})
-                      }}
-                    >
-                      {track.audioFeatures && (
-                        <AudioFeaturesDisplay features={track.audioFeatures} />
+                <li key={track.id} style={styles.trackItem}>
+                  <div style={styles.trackWithFeedback}>
+                    <div style={styles.trackMainContent}>
+                      <span style={styles.trackNumber}>{index + 1}</span>
+                      {track.album.images && track.album.images.length > 0 && (
+                        <Image
+                          src={track.album.images[2].url}
+                          alt={track.album.name}
+                          width={40}
+                          height={40}
+                          style={styles.trackImage}
+                          unoptimized={true}
+                        />
                       )}
-
-                      {/* Lyrics sentiment (if available) */}
-                      {track.lyricsInfo && (
-                        <div style={{ marginTop: '0.5rem' }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem' }}>
-                            Lyrics Sentiment
-                          </div>
-                          <div style={{
-                            padding: '0.3rem 0.6rem',
-                            borderRadius: '4px',
-                            display: 'inline-block',
-                            backgroundColor: track.lyricsInfo.sentiment === 'positive'
-                              ? 'rgba(29, 185, 84, 0.2)'
-                              : 'rgba(255, 85, 85, 0.2)',
-                            color: track.lyricsInfo.sentiment === 'positive'
-                              ? '#1DB954'
-                              : '#ff5555',
-                            fontSize: '0.8rem'
-                          }}>
-                            {track.lyricsInfo.sentiment.charAt(0).toUpperCase() + track.lyricsInfo.sentiment.slice(1)}
-                          </div>
-
-                          {track.lyricsInfo.themes && track.lyricsInfo.themes.length > 0 && (
-                            <div style={{ marginTop: '0.5rem' }}>
-                              <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem' }}>
-                                Themes
-                              </div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
-                                {track.lyricsInfo.themes.map((theme, i) => (
-                                  <span key={i} style={{
-                                    padding: '0.2rem 0.5rem',
-                                    borderRadius: '20px',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                                    fontSize: '0.7rem'
-                                  }}>
-                                    {theme}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                      <div style={styles.trackInfo}>
+                        <div style={styles.trackName}>
+                          {track.name}
+                          <button
+                            onClick={() => toggleTrackDetails(track.id)}
+                            style={styles.detailsButton}
+                          >
+                            {expandedTrackId === track.id ? 'Hide Details' : 'Show Details'}
+                          </button>
                         </div>
-                      )}
+                        <div style={styles.trackArtist}>
+                          {track.artists.map(artist => artist.name).join(', ')}
+                        </div>
 
-                      {/* Spotify player link */}
-                      <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
-                        <a
-                          href={track.external_urls.spotify}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        {/* Track details section with audio features */}
+                        <div
                           style={{
-                            color: '#1DB954',
-                            fontSize: '0.8rem',
-                            textDecoration: 'none'
+                            ...styles.trackDetails,
+                            ...(expandedTrackId === track.id ? styles.trackDetailsOpen : {})
                           }}
                         >
-                          Play on Spotify
-                        </a>
+                          {track.audioFeatures && (
+                            <AudioFeaturesDisplay features={track.audioFeatures} />
+                          )}
+
+                          {/* Lyrics sentiment (if available) */}
+                          {track.lyricsInfo && (
+                            <div style={{ marginTop: '0.5rem' }}>
+                              <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem' }}>
+                                Lyrics Sentiment
+                              </div>
+                              <div style={{
+                                padding: '0.3rem 0.6rem',
+                                borderRadius: '4px',
+                                display: 'inline-block',
+                                backgroundColor: track.lyricsInfo.sentiment === 'positive'
+                                  ? 'rgba(29, 185, 84, 0.2)'
+                                  : 'rgba(255, 85, 85, 0.2)',
+                                color: track.lyricsInfo.sentiment === 'positive'
+                                  ? '#1DB954'
+                                  : '#ff5555',
+                                fontSize: '0.8rem'
+                              }}>
+                                {track.lyricsInfo.sentiment.charAt(0).toUpperCase() + track.lyricsInfo.sentiment.slice(1)}
+                              </div>
+
+                              {track.lyricsInfo.themes && track.lyricsInfo.themes.length > 0 && (
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.3rem' }}>
+                                    Themes
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                                    {track.lyricsInfo.themes.map((theme, i) => (
+                                      <span key={i} style={{
+                                        padding: '0.2rem 0.5rem',
+                                        borderRadius: '20px',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                        fontSize: '0.7rem'
+                                      }}>
+                                        {theme}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Spotify player link */}
+                          <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
+                            <a
+                              href={track.external_urls.spotify}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                color: '#1DB954',
+                                fontSize: '0.8rem',
+                                textDecoration: 'none'
+                              }}
+                            >
+                              Play on Spotify
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Track action buttons */}
+                      <div style={styles.trackActionsContainer}>
+                        <div style={styles.trackMainActions}>
+                          {/* Story generation button */}
+                          <button
+                            onClick={() => {
+                              setClickedTrackId(track.id);
+                              setIsLoading(true);
+                              handleTrackClick(track.id, track.artists[0].name, track.name);
+                            }}
+                            style={{
+                              ...styles.button,
+                              ...(isLoading && clickedTrackId === track.id ? styles.buttonDisabled : {}),
+                              ...(hoveredTrackId === track.id ? styles.trackItemHover : {})
+                            }}
+                            onMouseEnter={() => setHoveredTrackId(track.id)}
+                            onMouseLeave={() => setHoveredTrackId(null)}
+                            disabled={isLoading && clickedTrackId === track.id}
+                            aria-label="生成歌曲故事"
+                          >
+                            {isLoading && clickedTrackId === track.id ? '生成中...' : '生成故事'}
+                          </button>
+
+                          {/* Spotify Listen button */}
+                          <a
+                            href={track.external_urls.spotify}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={styles.spotifyListenButton}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#1aa34a';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(29, 185, 84, 0.3)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#1DB954';
+                              e.currentTarget.style.transform = 'none';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            Listen on Spotify
+                          </a>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Track buttons container */}
-                  <div style={styles.trackButtonsContainer}>
-                    {/* Story generation button */}
-                    <button
-                      onClick={() => {
-                        setClickedTrackId(track.id);
-                        setIsLoading(true);
-                        handleTrackClick(
-                          track.id,
-                          track.artists[0].name,
-                          track.name
-                        );
-                      }}
-                      style={{
-                        ...styles.button,
-                        ...(isLoading && clickedTrackId === track.id ? styles.buttonDisabled : {}),
-                        ...(hoveredTrackId === track.id ? styles.trackItemHover : {})
-                      }}
-                      onMouseEnter={() => setHoveredTrackId(track.id)}
-                      onMouseLeave={() => setHoveredTrackId(null)}
-                      disabled={isLoading && clickedTrackId === track.id}
-                      aria-label="生成歌曲故事"
-                    >
-                      {isLoading && clickedTrackId === track.id ? '生成中...' : '生成故事'}
-                    </button>
-
-                    {/* New Spotify Listen button */}
-                    <a
-                      href={track.external_urls.spotify}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={styles.spotifyListenButton}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#1aa34a';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(29, 185, 84, 0.3)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#1DB954';
-                        e.currentTarget.style.transform = 'none';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    >
-                      Listen on Spotify
-                    </a>
+                    {/* Feedback Button for Recommendations */}
+                    <div style={styles.feedbackContainer}>
+                      <FeedbackButton
+                        trackId={track.id}
+                        userId={userData?.id}
+                        onFeedbackSubmitted={handleFeedbackSubmitted}
+                      />
+                    </div>
                   </div>
                 </li>
               ))}
             </ul>
-            {/* Story Modal */}
-            {/* {isModalOpen && <StoryModal story={story} onClose={() => setIsModalOpen(false)} />} */}
 
             {/* AI Insights */}
             {aiInsights && aiInsights.length > 0 && (
