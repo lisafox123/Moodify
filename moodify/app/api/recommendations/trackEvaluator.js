@@ -20,7 +20,7 @@ export async function evaluateTrackAlignment(tracks, prompt, mood) {
     }));
 
     // Split tracks into chunks for processing
-    const chunkSize = 15; // Smaller chunks for better processing
+    const chunkSize = tracks.length > 30 ? 10 : 15;
     const chunks = [];
     for (let i = 0; i < tracksData.length; i += chunkSize) {
       chunks.push(tracksData.slice(i, i + chunkSize));
@@ -28,9 +28,10 @@ export async function evaluateTrackAlignment(tracks, prompt, mood) {
 
     let allEvaluations = [];
 
-    for (const chunk of chunks) {
-      try {
-        const response = await openai.chat.completions.create({
+    const evaluations = await Promise.allSettled(
+      chunks.map(async (chunk) => {
+        try {
+          const response = await openai.chat.completions.create({
             model: "gpt-4.1-mini",
             messages: [
               {
@@ -73,46 +74,36 @@ export async function evaluateTrackAlignment(tracks, prompt, mood) {
             temperature: 0.2,
           });
 
-        const content = response.choices[0]?.message?.content || "";
-        
-        try {
+          const content = response.choices[0]?.message?.content || "";
           const jsonStr = content.replace(/```json|```/g, '').trim();
           const result = JSON.parse(jsonStr);
-          
-          if (result.evaluations && Array.isArray(result.evaluations)) {
-            allEvaluations.push(...result.evaluations);
-          }
-        } catch (parseError) {
-          console.error('Failed to parse evaluation result:', parseError);
-          console.log('Raw content:', content);
-          
-          // Fallback: give all tracks in chunk a score of 6 (decent match)
-          const fallbackEvaluations = chunk.map(track => ({
-            id: track.id,
-            score: 6,
-            reason: 'Fallback scoring due to parsing error'
-          }));
-          allEvaluations.push(...fallbackEvaluations);
-        }
+    
+          return result.evaluations || [];        
       } catch (error) {
-        console.error('Error in track evaluation chunk:', error);
-        
-        // Fallback: give all tracks in chunk a decent score
-        const fallbackEvaluations = chunk.map(track => ({
+        console.error("Chunk evaluation error:", error);
+        // fallback scores if error occurs
+        return chunk.map(track => ({
           id: track.id,
           score: 6,
-          reason: 'Fallback scoring due to API error'
+          reason: 'Fallback scoring due to error'
         }));
-        allEvaluations.push(...fallbackEvaluations);
       }
-    }
+    })
+  );
 
+  
     // Filter tracks based on scores - be more lenient with threshold
     const highQualityTracks = [];
     const lowQualityTracks = [];
+
+    const flattenedEvaluations = evaluations.flatMap(res =>
+      res.status === 'fulfilled' ? res.value : []
+    );
+    
     
     for (const track of tracks) {
-      const evaluation = allEvaluations.find(e => e.id === track.id);
+      
+      const evaluation = flattenedEvaluations.find(e => e.id === track.id);
       const score = evaluation?.score || 6; // Default to decent score instead of 5
       
       if (score >= 6) { // Lowered threshold from 7 to 6
