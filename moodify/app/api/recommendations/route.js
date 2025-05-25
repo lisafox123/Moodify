@@ -154,7 +154,7 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     // Step 1: Analyze user's mood with enhanced prompting
     console.log("Step 1: Enhanced mood analysis...");
     const stepStart = Date.now();
-    const mood = await analyzeMoodEnhanced(prompt);
+    const mood = await analyzeMood(prompt);
     metadata.steps.push({
       step: 1,
       name: "mood_analysis",
@@ -368,34 +368,6 @@ async function processClassicRecommendations(prompt, token, outputFormat) {
   }
 }
 
-// ENHANCED HELPER FUNCTIONS
-
-// Enhanced mood analysis with better prompt engineering
-async function analyzeMoodEnhanced(prompt) {
-  try {
-    const response = await fetch('/api/openai/analyze-mood', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt,
-        enhanced: true,
-        context: "music_recommendation"
-      })
-    });
-
-    if (!response.ok) {
-      console.warn("Enhanced mood analysis failed, falling back to basic");
-      return await analyzeMood(prompt);
-    }
-
-    const data = await response.json();
-    return data.mood || "balanced";
-
-  } catch (error) {
-    console.error("Enhanced mood analysis error:", error);
-    return await analyzeMood(prompt);
-  }
-}
 
 // Smart library fetching with mood-based sampling
 async function fetchLibraryEnhanced(token, mood) {

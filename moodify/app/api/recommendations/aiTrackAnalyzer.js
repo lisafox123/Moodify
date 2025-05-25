@@ -301,7 +301,7 @@ Your task:
 - Balance mood matching with user preference satisfaction
 
 Return ONLY a valid JSON object with:
-- "selected": an array of track IDs (max ${Math.min(numericTargetCount - selectedTracks.length, 20)}) that best balance mood alignment and user preferences
+- "selected": an array of track IDs (items in array:10~15 if there are more than 10 tracks) that best balance mood alignment and user preferences
 - "reasons": an object where each selected track ID maps to a concise explanation including both mood fit and preference alignment
 
 Be selective. Prioritize user satisfaction through personalized recommendations.
@@ -342,7 +342,7 @@ ${JSON.stringify(chunk, null, 2)}
             const chunkSelected = chunk.filter(track => result.selected.includes(track.id));
             selectedTracks.push(...chunkSelected);
             
-            console.log(`Selected ${chunkSelected.length} tracks from chunk of ${chunk.length} (considering user preferences)`);
+            console.log(`Selected ${chunkSelected.length} tracks from chunk of ${chunk.length}`);
           }
         } catch (parseError) {
           console.error('Failed to parse AI analysis result:', parseError);

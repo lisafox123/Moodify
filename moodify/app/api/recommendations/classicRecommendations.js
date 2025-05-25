@@ -222,7 +222,7 @@ function extractSongsFromSerpResults(data, originalQuery) {
 // STEP 3: ENHANCED AI GENERATION WITH BETTER PROMPTING
 async function generateAIRecommendations(refinedPrompt, constraints) {
   try {
-    const systemPrompt = `You are a world-renowned music curator and historian. Your expertise spans all genres and eras, from the 1940s to today.
+    const systemPrompt = `You are a world-renowned music curator. Your expertise spans all genres and eras, from the 1940s to today.
 
 Your role:
 - Select timeless, critically acclaimed songs that align with user requests.
