@@ -7,6 +7,24 @@ import StoryModal from './components/StoryModal';
 import FeedbackButton from './components/FeedbackButton';
 import { styles } from './styles';
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
+
+  return isMobile;
+};
+
+
 // Icon components
 const MenuIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -65,13 +83,13 @@ const ToggleSwitch = ({ isOn, label, leftText, rightText, onToggle }) => {
     </div>
   );
 };
-
-// Track Card Component
+// Updated TrackCard component with CSS classes for better mobile support
 const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, clickedTrackId, userData, onFeedbackSubmitted, expanded, onToggleExpand }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <div 
+      className="track-card"
       style={{
         ...styles.trackCard,
         ...(isHovered ? styles.trackCardHover : {})
@@ -79,66 +97,61 @@ const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, cl
       onMouseEnter={() => setIsHovered(true)} 
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div style={styles.trackMain}>
-        <span style={styles.trackNumber}>{index + 1}</span>
-        <div style={styles.trackImageContainer}>
-          {track.album.images && track.album.images.length > 0 && (
-            <Image
-              src={track.album.images[1]?.url || track.album.images[0].url}
-              alt={track.album.name}
-              width={60}
-              height={60}
-              style={styles.trackImage}
-              unoptimized={true}
-            />
-          )}
-        </div>
+      <div className="track-main">
+        <span className="track-number">{index + 1}</span>
         
-        <div style={styles.trackInfo}>
-          <div style={styles.trackName}>{track.name}</div>
-          <div style={styles.trackArtist}>
-            {track.artists.map(artist => artist.name).join(', ')}
+        <div className="track-content">
+          <div className="track-image-container">
+            {track.album.images && track.album.images.length > 0 && (
+              <Image
+                src={track.album.images[1]?.url || track.album.images[0].url}
+                alt={track.album.name}
+                width={60}
+                height={60}
+                className="track-image"
+                unoptimized={true}
+              />
+            )}
           </div>
           
-          {isRecommendation && (
-            <button
-              onClick={() => onToggleExpand(track.id)}
-              style={styles.detailsToggle}
-            >
-              {expanded ? 'Hide Details' : 'Show Details'}
-            </button>
-          )}
+          <div className="track-info">
+            <div className="track-name">{track.name}</div>
+            <div className="track-artist">
+              {track.artists.map(artist => artist.name).join(', ')}
+            </div>
+            
+          </div>
         </div>
+      </div>
 
-        <div style={styles.trackActions}>
-          <button
-            onClick={() => onStoryClick(track.id, track.artists[0].name, track.name)}
-            style={{
-              ...styles.actionButton,
-              ...styles.storyButton,
-              ...(isLoading && clickedTrackId === track.id ? styles.buttonDisabled : {})
-            }}
-            disabled={isLoading && clickedTrackId === track.id}
-          >
-            <StoryIcon />
-            <span style={styles.buttonText}>
-              {isLoading && clickedTrackId === track.id ? 'Loading...' : 'Story'}
-            </span>
-          </button>
-          
-          <a
-            href={track.external_urls.spotify}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              ...styles.actionButton,
-              ...styles.spotifyPlayButton
-            }}
-          >
-            <PlayIcon />
-            <span style={styles.buttonText}>Play</span>
-          </a>
-        </div>
+      <div className="track-actions">
+
+      <a
+          href={track.external_urls.spotify}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="action-button spotify-play-button"
+          style={styles.spotifyPlayButton}
+        >
+          <PlayIcon />
+          <span className="button-text">Play</span>
+        </a>
+
+        <button
+          onClick={() => onStoryClick(track.id, track.artists[0].name, track.name)}
+          className="action-button story-button"
+          style={{
+            ...styles.storyButton,
+            ...(isLoading && clickedTrackId === track.id ? styles.buttonDisabled : {})
+          }}
+          disabled={isLoading && clickedTrackId === track.id}
+        >
+          <StoryIcon />
+          <span className="button-text">
+            {isLoading && clickedTrackId === track.id ? 'Loading...' : 'Story'}
+          </span>
+        </button>
+
       </div>
 
       {/* Expanded details for recommendations */}
@@ -188,8 +201,11 @@ const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, cl
   );
 };
 
+
 export default function Home() {
   const router = useRouter();
+  const isMobile = useIsMobile(); // Add this line
+
   const [error, setError] = useState('');
   const [prompt, setPrompt] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -624,9 +640,12 @@ export default function Home() {
         }}>
           {isLoggedIn && userData ? (
             <div style={styles.userProfile}>
-              <span style={styles.userName}>
-                {userData.display_name}
-              </span>
+              {!isMobile && (
+                <span style={styles.userName}>
+                  {userData.display_name}
+                </span>
+              )}
+
               {userData.images && userData.images.length > 0 ? (
                 <Image
                   src={userData.images[0].url}

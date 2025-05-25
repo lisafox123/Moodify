@@ -1,4 +1,4 @@
-// styles.js - Centralized styles for the Moodify app
+// Updated styles.js with improved mobile responsiveness
 
 export const styles = {
   // Container and Layout
@@ -10,7 +10,7 @@ export const styles = {
     color: '#7A7687',
   },
 
-  // Navigation Styles
+  // Navigation Styles - Enhanced mobile support
   navbar: {
     width: '100%',
     padding: '1rem 2rem',
@@ -22,6 +22,10 @@ export const styles = {
     top: 0,
     zIndex: 50,
     boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
+    '@media (maxWidth: 768px)': {
+      padding: '1rem',
+      flexWrap: 'wrap',
+    },
   },
 
   logoContainer: {
@@ -37,12 +41,18 @@ export const styles = {
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: 0,
+    '@media (maxWidth: 768px)': {
+      fontSize: '1.5rem',
+    },
   },
 
   navRight: {
     display: 'flex',
     alignItems: 'center',
     gap: '1rem',
+    '@media (maxWidth: 768px)': {
+      display: 'none',
+    },
   },
 
   navRightMobile: {
@@ -55,6 +65,7 @@ export const styles = {
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
     borderRadius: '0 0 12px 12px',
     width: '250px',
+    display: 'flex',
   },
 
   mobileMenuButton: {
@@ -64,7 +75,7 @@ export const styles = {
     color: '#7A7687',
     cursor: 'pointer',
     padding: '0.5rem',
-    '@media (max-width: 768px)': {
+    '@media (maxWidth: 768px)': {
       display: 'block',
     },
   },
@@ -78,11 +89,19 @@ export const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
+    '@media (maxWidth: 768px)': {
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: '0.5rem',
+    },
   },
 
   userName: {
     fontWeight: '500',
     color: '#7A7687',
+    '@media (maxWidth: 768px)': {
+      textAlign: 'center',
+    },
   },
 
   userAvatar: {
@@ -91,6 +110,9 @@ export const styles = {
     borderRadius: '50%',
     border: '2px solid rgba(255, 255, 255, 0.3)',
     objectFit: 'cover',
+    '@media (maxWidth: 768px)': {
+      alignSelf: 'center',
+    },
   },
 
   userAvatarPlaceholder: {
@@ -103,6 +125,9 @@ export const styles = {
     justifyContent: 'center',
     color: 'white',
     fontWeight: 'bold',
+    '@media (maxWidth: 768px)': {
+      alignSelf: 'center',
+    },
   },
 
   // Buttons
@@ -119,6 +144,7 @@ export const styles = {
     fontSize: '0.875rem',
     fontWeight: '600',
     transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap',
   },
 
   logoutButton: {
@@ -133,21 +159,27 @@ export const styles = {
     transition: 'all 0.2s ease',
   },
 
-  // Main Content
+  // Main Content - Enhanced mobile padding
   mainContainer: {
     maxWidth: '1200px',
     margin: '0 auto',
     padding: '3rem 1.5rem',
     width: '100%',
+    '@media (maxWidth: 768px)': {
+      padding: '1.5rem 1rem',
+    },
   },
 
   heroSection: {
     textAlign: 'center',
     marginBottom: '3rem',
+    '@media (maxWidth: 768px)': {
+      marginBottom: '2rem',
+    },
   },
 
   mainTitle: {
-    fontSize: 'clamp(2rem, 5vw, 3rem)',
+    fontSize: 'clamp(1.75rem, 5vw, 3rem)',
     lineHeight: 1.2,
     background: 'linear-gradient(135deg, #f6b127, #E7C889, #E7E789, #e5e53a)',
     WebkitBackgroundClip: 'text',
@@ -156,10 +188,11 @@ export const styles = {
   },
 
   mainDescription: {
-    fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+    fontSize: 'clamp(0.9rem, 2vw, 1.25rem)',
     opacity: 0.9,
     maxWidth: '600px',
     margin: '0 auto',
+    lineHeight: 1.5,
   },
 
   // Error Message
@@ -171,14 +204,23 @@ export const styles = {
     borderRadius: '8px',
     marginBottom: '2rem',
     maxWidth: '100%',
+    fontSize: '0.9rem',
+    '@media (maxWidth: 768px)': {
+      padding: '0.75rem',
+      fontSize: '0.85rem',
+    },
   },
 
-  // Settings Section
+  // Settings Section - Improved mobile layout
   settingsSection: {
     backgroundColor: 'rgba(0, 0, 255, 0.03)',
     borderRadius: '16px',
     padding: '2rem',
     marginBottom: '2rem',
+    '@media (maxWidth: 768px)': {
+      padding: '1.5rem 1rem',
+      borderRadius: '12px',
+    },
   },
 
   sectionTitle: {
@@ -186,20 +228,31 @@ export const styles = {
     fontWeight: '600',
     marginBottom: '1.5rem',
     color: '#7A7687',
+    '@media (maxWidth: 768px)': {
+      fontSize: '1.25rem',
+      marginBottom: '1rem',
+    },
   },
 
   settingsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: '1.5rem',
+    '@media (maxWidth: 768px)': {
+      gridTemplateColumns: '1fr',
+      gap: '1rem',
+    },
   },
 
-  // Toggle Switch
+  // Toggle Switch - Mobile optimized
   toggleContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     padding: '1rem',
     borderRadius: '12px',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+    '@media (maxWidth: 768px)': {
+      padding: '0.75rem',
+    },
   },
 
   toggleLabel: {
@@ -207,6 +260,7 @@ export const styles = {
     fontWeight: '500',
     marginBottom: '0.75rem',
     color: '#73669F',
+    fontSize: '0.95rem',
   },
 
   toggleButton: {
@@ -277,11 +331,15 @@ export const styles = {
     borderRadius: '20px',
     outline: 'none',
     transition: 'all 0.3s ease',
+    boxSizing: 'border-box',
   },
 
   // Input Section
   inputSection: {
     marginBottom: '3rem',
+    '@media (maxWidth: 768px)': {
+      marginBottom: '2rem',
+    },
   },
 
   inputContainer: {
@@ -295,6 +353,9 @@ export const styles = {
     fontWeight: '500',
     marginBottom: '1rem',
     textAlign: 'center',
+    '@media (maxWidth: 768px)': {
+      fontSize: '1rem',
+    },
   },
 
   moodInput: {
@@ -307,6 +368,11 @@ export const styles = {
     borderRadius: '12px',
     outline: 'none',
     transition: 'all 0.3s ease',
+    boxSizing: 'border-box',
+    '@media (maxWidth: 768px)': {
+      padding: '0.75rem 1rem',
+      fontSize: '1rem',
+    },
   },
 
   samplePrompts: {
@@ -326,6 +392,10 @@ export const styles = {
     borderRadius: '20px',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
+    '@media (maxWidth: 768px)': {
+      padding: '0.4rem 0.8rem',
+      fontSize: '0.8rem',
+    },
   },
 
   generateButton: {
@@ -341,6 +411,11 @@ export const styles = {
     cursor: 'pointer',
     transition: 'all 0.3s ease',
     boxShadow: '0 4px 12px rgba(115, 102, 159, 0.2)',
+    '@media (maxWidth: 768px)': {
+      padding: '0.75rem 1.5rem',
+      fontSize: '1rem',
+      margin: '1.5rem auto 0',
+    },
   },
 
   buttonDisabled: {
@@ -349,44 +424,66 @@ export const styles = {
     background: '#888',
   },
 
-  // Tracks Section
+  // Tracks Section - Major mobile improvements
   tracksSection: {
     backgroundColor: 'rgba(0, 0, 255, 0.03)',
     borderRadius: '16px',
     padding: '2rem',
     marginBottom: '2rem',
+    '@media (maxWidth: 768px)': {
+      padding: '1.5rem 1rem',
+      borderRadius: '12px',
+    },
   },
 
   loadingSpinner: {
     textAlign: 'center',
     padding: '2rem',
     color: 'rgba(122, 118, 135, 0.7)',
+    '@media (maxWidth: 768px)': {
+      padding: '1.5rem',
+      fontSize: '0.9rem',
+    },
   },
 
   tracksList: {
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
+    '@media (maxWidth: 768px)': {
+      gap: '0.75rem',
+    },
   },
 
-  // Track Card
+  // Track Card - Completely redesigned for mobile
   trackCard: {
     backgroundColor: 'white',
     borderRadius: '12px',
     padding: '1rem',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
     transition: 'all 0.3s ease',
+    '@media (maxWidth: 768px)': {
+      padding: '0.75rem',
+      borderRadius: '10px',
+    },
   },
 
   trackCardHover: {
     transform: 'translateY(-2px)',
     boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+    '@media (maxWidth: 768px)': {
+      transform: 'none', // Disable hover effects on mobile
+    },
   },
 
   trackMain: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '1rem',
+    '@media (maxWidth: 768px)': {
+      flexDirection: 'column',
+      gap: '0.75rem',
+    },
   },
 
   trackNumber: {
@@ -395,20 +492,50 @@ export const styles = {
     color: 'rgba(122, 118, 135, 0.5)',
     minWidth: '30px',
     textAlign: 'center',
+    '@media (maxWidth: 768px)': {
+      position: 'absolute',
+      top: '0.75rem',
+      left: '0.75rem',
+      fontSize: '1rem',
+      minWidth: 'auto',
+    },
+  },
+
+  // Mobile track header container
+  trackHeader: {
+    '@media (maxWidth: 768px)': {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.75rem',
+      width: '100%',
+      paddingLeft: '2rem', // Make room for track number
+    },
   },
 
   trackImageContainer: {
     flexShrink: 0,
+    '@media (maxWidth: 768px)': {
+      flexShrink: 0,
+    },
   },
 
   trackImage: {
     borderRadius: '8px',
     objectFit: 'cover',
+    '@media (maxWidth: 768px)': {
+      width: '50px',
+      height: '50px',
+      borderRadius: '6px',
+    },
   },
 
   trackInfo: {
     flex: 1,
     minWidth: 0,
+    '@media (maxWidth: 768px)': {
+      flex: 1,
+      minWidth: 0,
+    },
   },
 
   trackName: {
@@ -418,6 +545,15 @@ export const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    '@media (maxWidth: 768px)': {
+      fontSize: '0.9rem',
+      whiteSpace: 'normal',
+      display: '-webkit-box',
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: 'vertical',
+      lineHeight: 1.3,
+      marginBottom: '0.1rem',
+    },
   },
 
   trackArtist: {
@@ -426,6 +562,13 @@ export const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    '@media (maxWidth: 768px)': {
+      fontSize: '0.8rem',
+      whiteSpace: 'normal',
+      display: '-webkit-box',
+      WebkitLineClamp: 1,
+      WebkitBoxOrient: 'vertical',
+    },
   },
 
   detailsToggle: {
@@ -438,12 +581,22 @@ export const styles = {
     marginTop: '0.25rem',
     borderRadius: '4px',
     transition: 'all 0.2s ease',
+    '@media (maxWidth: 768px)': {
+      fontSize: '0.7rem',
+      padding: '0.2rem 0.4rem',
+    },
   },
 
   trackActions: {
     display: 'flex',
     gap: '0.5rem',
     flexShrink: 0,
+    '@media (maxWidth: 768px)': {
+      width: '100%',
+      justifyContent: 'space-between',
+      gap: '0.5rem',
+      marginTop: '0.5rem',
+    },
   },
 
   actionButton: {
@@ -459,10 +612,20 @@ export const styles = {
     textDecoration: 'none',
     border: 'none',
     whiteSpace: 'nowrap',
+    '@media (maxWidth: 768px)': {
+      flex: 1,
+      justifyContent: 'center',
+      padding: '0.6rem 0.75rem',
+      fontSize: '0.8rem',
+      gap: '0.3rem',
+    },
   },
 
   buttonText: {
     display: 'inline-block',
+    '@media (maxWidth: 480px)': {
+      display: 'none', // Hide text on very small screens, keep only icons
+    },
   },
 
   storyButton: {
@@ -479,11 +642,18 @@ export const styles = {
     marginTop: '1rem',
     paddingTop: '1rem',
     borderTop: '1px solid rgba(0, 0, 0, 0.05)',
+    '@media (maxWidth: 768px)': {
+      marginTop: '0.75rem',
+      paddingTop: '0.75rem',
+    },
   },
 
   // Lyrics Info
   lyricsInfo: {
     marginTop: '1rem',
+    '@media (maxWidth: 768px)': {
+      marginTop: '0.75rem',
+    },
   },
 
   lyricsSentiment: {
@@ -491,12 +661,19 @@ export const styles = {
     alignItems: 'center',
     gap: '0.5rem',
     marginBottom: '0.5rem',
+    '@media (maxWidth: 768px)': {
+      flexWrap: 'wrap',
+      gap: '0.3rem',
+    },
   },
 
   label: {
     fontSize: '0.875rem',
     fontWeight: '600',
     color: '#73669F',
+    '@media (maxWidth: 768px)': {
+      fontSize: '0.8rem',
+    },
   },
 
   sentimentBadge: {
@@ -505,6 +682,10 @@ export const styles = {
     fontSize: '0.75rem',
     fontWeight: '500',
     textTransform: 'capitalize',
+    '@media (maxWidth: 768px)': {
+      padding: '0.2rem 0.6rem',
+      fontSize: '0.7rem',
+    },
   },
 
   sentimentPositive: {
@@ -539,12 +720,20 @@ export const styles = {
     borderRadius: '12px',
     fontSize: '0.75rem',
     color: '#73669F',
+    '@media (maxWidth: 768px)': {
+      padding: '0.2rem 0.4rem',
+      fontSize: '0.7rem',
+    },
   },
 
   feedbackWrapper: {
     marginTop: '0.75rem',
     display: 'flex',
     justifyContent: 'flex-end',
+    '@media (maxWidth: 768px)': {
+      justifyContent: 'center',
+      marginTop: '0.5rem',
+    },
   },
 
   // Recommendations Section
@@ -553,6 +742,10 @@ export const styles = {
     borderRadius: '16px',
     padding: '2rem',
     marginBottom: '2rem',
+    '@media (maxWidth: 768px)': {
+      padding: '1.5rem 1rem',
+      borderRadius: '12px',
+    },
   },
 
   storyText: {
@@ -563,6 +756,11 @@ export const styles = {
     borderRadius: '12px',
     marginBottom: '2rem',
     borderLeft: '4px solid #9E94BE',
+    '@media (maxWidth: 768px)': {
+      padding: '1rem',
+      fontSize: '0.9rem',
+      marginBottom: '1.5rem',
+    },
   },
 
   moodFeatures: {
@@ -570,6 +768,10 @@ export const styles = {
     padding: '1.5rem',
     borderRadius: '12px',
     marginBottom: '2rem',
+    '@media (maxWidth: 768px)': {
+      padding: '1rem',
+      marginBottom: '1.5rem',
+    },
   },
 
   // AI Insights
@@ -578,6 +780,10 @@ export const styles = {
     borderRadius: '12px',
     padding: '1.5rem',
     marginTop: '2rem',
+    '@media (maxWidth: 768px)': {
+      padding: '1rem',
+      marginTop: '1.5rem',
+    },
   },
 
   insightsTitle: {
@@ -585,12 +791,19 @@ export const styles = {
     fontWeight: '600',
     marginBottom: '1rem',
     color: '#73669F',
+    '@media (maxWidth: 768px)': {
+      fontSize: '1.1rem',
+      marginBottom: '0.75rem',
+    },
   },
 
   insightsList: {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.75rem',
+    '@media (maxWidth: 768px)': {
+      gap: '0.5rem',
+    },
   },
 
   insightItem: {
@@ -600,6 +813,10 @@ export const styles = {
     fontSize: '0.9rem',
     lineHeight: '1.6',
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+    '@media (maxWidth: 768px)': {
+      padding: '0.75rem',
+      fontSize: '0.85rem',
+    },
   },
 
   // Playlist Info
@@ -608,6 +825,10 @@ export const styles = {
     borderRadius: '12px',
     padding: '1.5rem',
     marginTop: '2rem',
+    '@media (maxWidth: 768px)': {
+      padding: '1rem',
+      marginTop: '1.5rem',
+    },
   },
 
   playlistTitle: {
@@ -615,57 +836,29 @@ export const styles = {
     fontWeight: '600',
     marginBottom: '0.5rem',
     color: '#1DB954',
+    '@media (maxWidth: 768px)': {
+      fontSize: '1.1rem',
+    },
   },
 
   playlistDescription: {
     marginBottom: '1rem',
     lineHeight: '1.6',
+    '@media (maxWidth: 768px)': {
+      fontSize: '0.9rem',
+      marginBottom: '0.75rem',
+    },
   },
 
   playlistActions: {
     display: 'flex',
     gap: '1rem',
     flexWrap: 'wrap',
+    '@media (maxWidth: 768px)': {
+      gap: '0.5rem',
+    },
   },
 
-  // Mobile-specific styles
-  mobileNavbar: {
-    padding: '1rem',
-  },
   
-  mobileLogoText: {
-    fontSize: '1.5rem',
-  },
-  
-  mobileTrackMain: {
-    flexWrap: 'wrap',
-  },
-  
-  mobileTrackActions: {
-    width: '100%',
-    marginTop: '0.75rem',
-    justifyContent: 'space-between',
-  },
-  
-  mobileActionButton: {
-    padding: '0.5rem',
-  },
-  
-  // Small mobile styles
-  smallMobileTitle: {
-    fontSize: '1.75rem',
-  },
-  
-  smallMobileDescription: {
-    fontSize: '1rem',
-  },
-  
-  smallMobilePadding: {
-    padding: '1.5rem 1rem',
-  },
-  
-  smallMobileTrackImage: {
-    width: '50px',
-    height: '50px',
-  },
 };
+
