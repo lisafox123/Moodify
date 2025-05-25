@@ -6,6 +6,7 @@ import AudioFeaturesDisplay from './components/AudioFeaturesDisplay';
 import StoryModal from './components/StoryModal';
 import FeedbackButton from './components/FeedbackButton';
 import { styles } from './styles';
+import EnhancedProgressDisplay from './components/EnhancedProgressDisplay'
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
@@ -14,16 +15,15 @@ const useIsMobile = () => {
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkIsMobile();
     window.addEventListener('resize', checkIsMobile);
-    
+
     return () => window.removeEventListener('resize', checkIsMobile);
   }, []);
 
   return isMobile;
 };
-
 
 // Icon components
 const MenuIcon = () => (
@@ -43,15 +43,117 @@ const CloseIcon = () => (
 
 const PlayIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-    <path d="M3 2.5v11l10-5.5L3 2.5z"/>
+    <path d="M3 2.5v11l10-5.5L3 2.5z" />
   </svg>
 );
 
 const StoryIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-    <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2 1v10h8V3H4zm2 2h4v2H6V5zm0 3h4v2H6V8zm0 3h2v2H6v-2z"/>
+    <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2 1v10h8V3H4zm2 2h4v2H6V5zm0 3h4v2H6V8zm0 3h2v2H6v-2z" />
   </svg>
 );
+
+const CheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z" />
+  </svg>
+);
+
+const LoadingIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="animate-spin">
+    <path opacity="0.3" d="M8 1a7 7 0 1 0 7 7h-2a5 5 0 1 1-5-5V1z" />
+    <path d="M8 1v2a5 5 0 0 1 5 5h2a7 7 0 0 0-7-7z" />
+  </svg>
+);
+
+// Helper function to get step results for simulation
+const getStepResult = (stepId) => {
+  const results = {
+    'mood_analysis': 'balanced',
+    'library_fetch': '95 tracks',
+    'ai_track_analysis': '30 tracks selected',
+    'parallel_audd_analysis': '30 tracks enhanced',
+    'semantic_evaluation': '26 high-quality tracks',
+    'finalizing': 'Complete!'
+  };
+  return results[stepId] || 'Processing...';
+};
+
+// Processing Steps Component
+const ProcessingSteps = ({ steps, currentStep, isGenerating }) => {
+  const stepDefinitions = [
+    { id: 'mood_analysis', label: 'Analyzing your mood', icon: '🎭' },
+    { id: 'library_fetch', label: 'Scanning your music library', icon: '📚' },
+    { id: 'ai_track_analysis', label: 'AI selecting best matches', icon: '🤖' },
+    { id: 'parallel_audd_analysis', label: 'Analyzing audio features', icon: '🎵' },
+    { id: 'semantic_evaluation', label: 'Evaluating track quality', icon: '✨' },
+    { id: 'quality_assurance', label: 'Quality assurance check', icon: '🔍' },
+    { id: 'finalizing', label: 'Finalizing recommendations', icon: '🎯' },
+    { id: 'story_generation', label: 'Generating playlist story', icon: '📝' }
+  ];
+
+  return (
+    <div className="processing-container">
+      <h3 className="processing-title">
+        {isGenerating ? 'Generating your personalized recommendations...' : 'Process complete!'}
+      </h3>
+
+      <div className="processing-steps">
+        {stepDefinitions.map((stepDef, index) => {
+          const stepData = steps.find(s => s.name === stepDef.id);
+          const isActive = currentStep === stepDef.id;
+          const isCompleted = stepData && stepData.completed;
+          const isError = stepData && stepData.status === 'error';
+          const isPending = !stepData && !isActive && isGenerating;
+
+          return (
+            <div
+              key={stepDef.id}
+              className="processing-step"
+              style={{
+                opacity: isPending ? 0.4 : 1,
+                color: isError ? '#ff6b6b' : 'inherit'
+              }}
+            >
+              <div className={`step-icon ${isError ? 'error' :
+                  isCompleted ? 'completed' :
+                    isActive ? 'active' : 'pending'
+                }`}>
+                {isError ? '❌' :
+                  isCompleted ? <CheckIcon /> :
+                    isActive ? <LoadingIcon /> :
+                      stepDef.icon}
+              </div>
+
+              <div className="step-content">
+                <div className={`step-label ${isError ? 'error' :
+                    isActive ? 'active' :
+                      isCompleted ? 'completed' : ''
+                  }`}>
+                  {stepDef.label}
+                </div>
+                {stepData && stepData.result && (
+                  <div className="step-result">
+                    {stepData.result} {stepData.duration && `(${stepData.duration}ms)`}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!isGenerating && steps.length > 0 && (
+        <div className="processing-summary">
+          Total processing time: {steps.reduce((total, step) => total + (step.duration || 0), 0)}ms
+          <br />
+          Steps completed: {steps.filter(s => s.completed).length}/{steps.length}
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 // Toggle Switch Component
 const ToggleSwitch = ({ isOn, label, leftText, rightText, onToggle }) => {
@@ -83,23 +185,24 @@ const ToggleSwitch = ({ isOn, label, leftText, rightText, onToggle }) => {
     </div>
   );
 };
-// Updated TrackCard component with CSS classes for better mobile support
+
+// TrackCard component
 const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, clickedTrackId, userData, onFeedbackSubmitted, expanded, onToggleExpand }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div 
+    <div
       className="track-card"
       style={{
         ...styles.trackCard,
         ...(isHovered ? styles.trackCardHover : {})
       }}
-      onMouseEnter={() => setIsHovered(true)} 
+      onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="track-main">
         <span className="track-number">{index + 1}</span>
-        
+
         <div className="track-content">
           <div className="track-image-container">
             {track.album.images && track.album.images.length > 0 && (
@@ -113,20 +216,18 @@ const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, cl
               />
             )}
           </div>
-          
+
           <div className="track-info">
             <div className="track-name">{track.name}</div>
             <div className="track-artist">
               {track.artists.map(artist => artist.name).join(', ')}
             </div>
-            
           </div>
         </div>
       </div>
 
       <div className="track-actions">
-
-      <a
+        <a
           href={track.external_urls.spotify}
           target="_blank"
           rel="noopener noreferrer"
@@ -151,7 +252,6 @@ const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, cl
             {isLoading && clickedTrackId === track.id ? 'Loading...' : 'Story'}
           </span>
         </button>
-
       </div>
 
       {/* Expanded details for recommendations */}
@@ -160,7 +260,7 @@ const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, cl
           {track.audioFeatures && (
             <AudioFeaturesDisplay features={track.audioFeatures} />
           )}
-          
+
           {track.lyricsInfo && (
             <div style={styles.lyricsInfo}>
               <div style={styles.lyricsSentiment}>
@@ -168,13 +268,13 @@ const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, cl
                 <span style={{
                   ...styles.sentimentBadge,
                   ...(track.lyricsInfo.sentiment === 'positive' ? styles.sentimentPositive :
-                     track.lyricsInfo.sentiment === 'negative' ? styles.sentimentNegative :
-                     styles.sentimentNeutral)
+                    track.lyricsInfo.sentiment === 'negative' ? styles.sentimentNegative :
+                      styles.sentimentNeutral)
                 }}>
                   {track.lyricsInfo.sentiment}
                 </span>
               </div>
-              
+
               {track.lyricsInfo.themes && track.lyricsInfo.themes.length > 0 && (
                 <div style={styles.lyricsThemes}>
                   <span style={styles.label}>Themes:</span>
@@ -201,10 +301,9 @@ const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, cl
   );
 };
 
-
 export default function Home() {
   const router = useRouter();
-  const isMobile = useIsMobile(); // Add this line
+  const isMobile = useIsMobile();
 
   const [error, setError] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -232,12 +331,18 @@ export default function Home() {
   const [audioFeaturesData, setAudioFeaturesData] = useState(null);
   const [expandedTrackId, setExpandedTrackId] = useState(null);
 
+  // Processing steps state
+  const [processingSteps, setProcessingSteps] = useState([]);
+  const [currentProcessingStep, setCurrentProcessingStep] = useState(null);
+
   // Story modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [story, setStory] = useState(null);
   const [trackId, setTrackId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [clickedTrackId, setClickedTrackId] = useState(null);
+  const [currentRequestId, setCurrentRequestId] = useState(null);
+
 
   // Sample prompt buttons
   const samplePrompts = [
@@ -364,6 +469,8 @@ export default function Home() {
     setAiInsights([]);
     setAudioFeaturesData(null);
     setMobileMenuOpen(false);
+    setProcessingSteps([]);
+    setCurrentProcessingStep(null);
   };
 
   useEffect(() => {
@@ -433,6 +540,7 @@ export default function Home() {
     }
   };
 
+  // Updated generateRecommendations function with proper progress integration
   const generateRecommendations = async () => {
     if (!isLoggedIn) {
       setError('Please connect to Spotify first');
@@ -446,14 +554,34 @@ export default function Home() {
 
     setIsGenerating(true);
     setError('');
+    setRecommendations([]);
+    setRecommendationStory('');
+    setGeneratedPlaylist(null);
+    setAiInsights([]);
+    setAudioFeaturesData(null);
+
+    // Generate unique request ID
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentRequestId(requestId);
 
     try {
       if (!accessToken) {
         throw new Error('No access token available. Please reconnect to Spotify.');
       }
 
-      console.log('Fetching recommendations with prompt:', prompt);
+      console.log('Starting recommendations with request ID:', requestId);
 
+      // Initialize progress tracking on the server
+      await fetch('/api/recommendations/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: requestId,
+          action: 'create'
+        })
+      });
+
+      // Start the main recommendation process
       const recommendationResponse = await fetch('/api/recommendations', {
         method: 'POST',
         headers: {
@@ -465,7 +593,8 @@ export default function Home() {
           customStory: customMode ? customStory : '',
           seedTracks: topTracks.map(track => track.id),
           recommendationType: moodMode ? 'mood' : 'classic',
-          outputFormat: playlistMode ? 'playlist' : 'track'
+          outputFormat: playlistMode ? 'playlist' : 'track',
+          requestId: requestId
         }),
       });
 
@@ -493,78 +622,125 @@ export default function Home() {
 
       const recommendationData = await recommendationResponse.json();
 
+      // Validate response data
       if (!recommendationData.recommendations || recommendationData.recommendations.length === 0) {
-        setError('No recommendations found. Try a different mood.');
-        setIsGenerating(false);
-        return;
+        throw new Error('No recommendations found. Try a different mood or prompt.');
       }
 
+      // Set the main recommendation data
+      setRecommendations(recommendationData.recommendations);
       setAudioFeaturesData(recommendationData.audioFeatures || null);
-      setRecommendations(recommendationData.recommendations || []);
       setRecommendationStory(recommendationData.story || '');
 
-      try {
-        const aiResponse = await fetch('/api/ai-recommendations', {
+      console.log(`Successfully generated ${recommendationData.recommendations.length} recommendations`);
+
+      // Enhanced AI insights (parallel processing)
+      const aiInsightsPromise = fetch('/api/ai-recommendations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: prompt,
+          token: accessToken,
+          topTracks: topTracks,
+          recommendedTracks: recommendationData.recommendations,
+          audioFeatures: recommendationData.audioFeatures || {},
+          mood: recommendationData.mood || 'balanced'
+        }),
+      }).then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+        return null;
+      }).then(aiData => {
+        if (aiData) {
+          if (aiData.story) setRecommendationStory(aiData.story);
+          if (aiData.insightfulComments) setAiInsights(aiData.insightfulComments);
+        }
+      }).catch(aiError => {
+        console.error('Error enhancing with AI insights:', aiError);
+      });
+
+      // Playlist creation (if requested)
+      const playlistPromise = playlistMode && recommendationData.recommendations.length > 0
+        ? fetch('/api/recommendations', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: prompt,
             token: accessToken,
-            topTracks: topTracks,
-            recommendedTracks: recommendationData.recommendations || [],
-            audioFeatures: recommendationData.audioFeatures || {},
-            mood: recommendationData.mood || 'balanced'
+            createPlaylistFlag: true,
+            playlistName: `${prompt.substring(0, 20)}... Mix`,
+            customStory: recommendationData.story || customStory,
+            manualTracks: recommendationData.recommendations
           }),
-        });
-
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          if (aiData.story) setRecommendationStory(aiData.story);
-          if (aiData.insightfulComments) setAiInsights(aiData.insightfulComments);
-        }
-      } catch (aiError) {
-        console.error('Error enhancing with AI:', aiError);
-      }
-
-      if (playlistMode && recommendationData.recommendations && recommendationData.recommendations.length > 0) {
-        try {
-          const playlistResponse = await fetch('/api/recommendations', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              token: accessToken,
-              createPlaylistFlag: true,
-              playlistName: `${prompt.substring(0, 20)}... Mix`,
-              customStory: recommendationData.story || customStory,
-              manualTracks: recommendationData.recommendations
-            }),
-          });
-
-          if (playlistResponse.ok) {
-            const playlistData = await playlistResponse.json();
-            if (playlistData.playlist) {
-              setGeneratedPlaylist(playlistData.playlist);
-            }
+        }).then(response => {
+          if (response.ok) {
+            return response.json();
           }
-        } catch (playlistError) {
+          return null;
+        }).then(playlistData => {
+          if (playlistData && playlistData.playlist) {
+            setGeneratedPlaylist(playlistData.playlist);
+          }
+        }).catch(playlistError => {
           console.error('Error creating playlist:', playlistError);
-        }
-      }
+        })
+        : Promise.resolve();
+
+      // Wait for parallel operations to complete
+      await Promise.allSettled([aiInsightsPromise, playlistPromise]);
+
+      console.log('All recommendation processes completed successfully');
 
     } catch (error) {
       console.error('Error generating recommendations:', error);
+
       setError(error.message || 'Failed to generate recommendations');
       setRecommendations([]);
       setRecommendationStory('');
       setAiInsights([]);
       setAudioFeaturesData(null);
+
+      // Update progress with error
+      try {
+        await fetch('/api/recommendations/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId: requestId,
+            action: 'error',
+            message: error.message
+          })
+        });
+      } catch (progressError) {
+        console.error('Error updating progress with error:', progressError);
+      }
     } finally {
       setIsGenerating(false);
+      setCurrentRequestId(null);
     }
+  };
+
+
+  // Progress completion handler
+  const handleProgressComplete = (result) => {
+    console.log('Progress completed with result:', result);
+    setIsGenerating(false);
+    setCurrentRequestId(null);
+
+    // Final cleanup can be done here if needed
+    // The actual recommendation data should already be set by the main function
+  };
+
+  // Progress error handler
+  const handleProgressError = (error) => {
+    console.error('Progress error:', error);
+    setError(error);
+    setIsGenerating(false);
+    setCurrentRequestId(null);
   };
 
   const getStoryForTrack = async (artist, song) => {
@@ -743,7 +919,7 @@ export default function Home() {
               onChange={(e) => setPrompt(e.target.value)}
               style={styles.moodInput}
             />
-            
+
             <div style={styles.samplePrompts}>
               {samplePrompts.map((samplePrompt, index) => (
                 <button
@@ -769,10 +945,20 @@ export default function Home() {
           </div>
         </div>
 
+        {(isGenerating || currentRequestId) && (
+          <EnhancedProgressDisplay
+            requestId={currentRequestId}
+            isGenerating={isGenerating}
+            onComplete={handleProgressComplete}
+            onError={handleProgressError}
+          />
+        )}
+
+
         {isLoggedIn && (
           <div style={styles.tracksSection}>
             <h2 style={styles.sectionTitle}>Your Top Tracks</h2>
-            
+
             {isLoadingTracks ? (
               <div style={styles.loadingSpinner}>Loading your top tracks...</div>
             ) : topTracks.length > 0 ? (
@@ -789,7 +975,7 @@ export default function Home() {
                     userData={userData}
                     onFeedbackSubmitted={handleFeedbackSubmitted}
                     expanded={false}
-                    onToggleExpand={() => {}}
+                    onToggleExpand={() => { }}
                   />
                 ))}
               </div>
@@ -802,7 +988,7 @@ export default function Home() {
         {recommendations.length > 0 && (
           <div style={styles.recommendationsSection}>
             <h2 style={styles.sectionTitle}>Your Personalized Recommendations</h2>
-            
+
             {audioFeaturesData && (
               <div style={styles.moodFeatures}>
                 <h3>Target Audio Profile</h3>

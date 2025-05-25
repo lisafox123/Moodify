@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { analyzeMood } from './analyzeMood.js';
 import { fetchLibrary } from './fetchLibrary.js';
 import { analyzeTracksWithAI } from './aiTrackAnalyzer.js';
-import { enhancedFeatureAnalysis } from './auddAnalyzer.js'; // This will use the new parallel version
+import { enhancedFeatureAnalysis } from './auddAnalyzer.js';
 import { evaluateTrackAlignment } from './trackEvaluator.js';
 import { generateFallbackRecommendations } from './fallbackRecommendations.js';
 import { generateClassicRecommendations } from './classicRecommendations.js';
@@ -15,8 +15,12 @@ import {
   createAudioFeatures
 } from './utils.js';
 
+// Import progress tracker
+import { ProgressTracker } from '../../lib/progressStore.js';
 
 export async function POST(request) {
+  let progressTracker = null;
+  
   try {
     const body = await request.json();
 
@@ -38,8 +42,16 @@ export async function POST(request) {
       manualTracks = [],
       recommendationType = "mood",
       outputFormat = "track",
-      qualityCheck = true
+      qualityCheck = true,
+      requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     } = body;
+
+    // Initialize progress tracker FIRST
+    progressTracker = new ProgressTracker(requestId);
+    console.log('ProgressTracker created successfully');
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
 
     // Add this function to get userId from token
     async function getUserIdFromToken(token) {
@@ -61,21 +73,27 @@ export async function POST(request) {
 
     const userId = token ? await getUserIdFromToken(token) : null;
 
-
     console.log("=== MUSIC RECOMMENDATION API REQUEST ===");
     console.log(`Type: ${recommendationType}, Format: ${outputFormat}, Prompt: "${prompt}"`);
 
     // Handle playlist creation if that's what we're doing
     if (createPlaylistFlag && manualTracks && manualTracks.length > 0) {
+      await progressTracker.updateStep('playlist_creation', 'active', 'Creating playlist...');
+      
       try {
         const playlist = await createSpotifyPlaylist(token, playlistName, manualTracks, customStory);
+        await progressTracker.completeStep('playlist_creation', 'Playlist created successfully');
+        await progressTracker.complete(playlist);
+        
         return NextResponse.json({
+          requestId,
           playlist: playlist,
           message: 'Playlist created successfully',
           recommendationType: 'mood',
           outputFormat: 'playlist'
         });
       } catch (error) {
+        await progressTracker.setError('playlist_creation', error.message);
         return NextResponse.json({
           error: error.message || 'Failed to create playlist'
         }, { status: 500 });
@@ -88,23 +106,26 @@ export async function POST(request) {
 
     // WORKFLOW BRANCHES
     if (recommendationType === "mood") {
-      const result = await processMoodRecommendationsOptimized(prompt, token, outputFormat, qualityCheck, userId);
+      const result = await processMoodRecommendationsOptimized(prompt, token, outputFormat, qualityCheck, userId, progressTracker);
       recommendations = result.recommendations;
       mood = result.mood;
       processingMetadata = result.metadata;
     } else if (recommendationType === "classic") {
-      const result = await processClassicRecommendations(prompt, token, outputFormat);
+      const result = await processClassicRecommendations(prompt, token, outputFormat, progressTracker);
       recommendations = result.recommendations;
       processingMetadata = result.metadata;
     }
 
     // Validate we have recommendations
     if (!recommendations || recommendations.length === 0) {
+      await progressTracker.setError('final_validation', 'Could not generate recommendations with the provided parameters');
       return NextResponse.json({
         error: 'Could not generate recommendations with the provided parameters',
         metadata: processingMetadata
       }, { status: 404 });
     }
+
+    await progressTracker.updateStep('story_generation', 'active', 'Generating playlist story...');
 
     // Generate story and audio features
     const story = await generatePlaylistStory(
@@ -118,10 +139,20 @@ export async function POST(request) {
 
     const audioFeatures = createAudioFeatures(mood);
 
+    await progressTracker.completeStep('story_generation', 'Story generated');
+
     console.log(`=== REQUEST COMPLETED: ${recommendations.length} recommendations generated ===`);
+
+    // Mark as complete
+    await progressTracker.complete({
+      recommendations: recommendations.length,
+      mood,
+      story: story ? 'Generated' : 'None'
+    });
 
     // Return final response
     return NextResponse.json({
+      requestId,
       recommendations: recommendations,
       audioFeatures: audioFeatures,
       mood: mood,
@@ -133,6 +164,10 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('API error:', error);
+    if (progressTracker) {
+      await progressTracker.setError('api_error', error.message);
+    }
+    
     return NextResponse.json({
       error: error.message || 'Internal server error',
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -140,8 +175,8 @@ export async function POST(request) {
   }
 }
 
-// OPTIMIZED MOOD RECOMMENDATION WORKFLOW WITH PARALLEL AUDD.IO PROCESSING
-async function processMoodRecommendationsOptimized(prompt, token, outputFormat, qualityCheck, userId) {
+// OPTIMIZED MOOD RECOMMENDATION WORKFLOW WITH PROGRESS TRACKING
+async function processMoodRecommendationsOptimized(prompt, token, outputFormat, qualityCheck, userId, progressTracker) {
   const metadata = {
     workflow: "mood_optimized",
     steps: [],
@@ -152,40 +187,56 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     console.log("=== STARTING OPTIMIZED MOOD RECOMMENDATION WORKFLOW ===");
 
     // Step 1: Analyze user's mood with enhanced prompting
+    await progressTracker.updateStep('mood_analysis', 'active', 'Analyzing your mood...');
     console.log("Step 1: Enhanced mood analysis...");
     const stepStart = Date.now();
     const mood = await analyzeMood(prompt);
+    const moodDuration = Date.now() - stepStart;
+    
     metadata.steps.push({
       step: 1,
       name: "mood_analysis",
       result: mood,
-      duration: Date.now() - stepStart
+      duration: moodDuration
     });
+    
+    await progressTracker.completeStep('mood_analysis', mood, moodDuration);
     console.log(`Detected mood: ${mood}`);
 
     // Step 2: Fetch user's library with smart sampling
+    await progressTracker.updateStep('library_fetch', 'active', 'Scanning your music library...');
     console.log("Step 2: Smart library fetching...");
     const libStart = Date.now();
     const libraryTracks = await fetchLibraryEnhanced(token, mood);
+    const libDuration = Date.now() - libStart;
+    
     metadata.steps.push({
       step: 2,
       name: "library_fetch",
       result: `${libraryTracks.length} tracks`,
-      duration: Date.now() - libStart
+      duration: libDuration
     });
+    
+    await progressTracker.completeStep('library_fetch', `${libraryTracks.length} tracks`, libDuration);
     console.log(`Retrieved ${libraryTracks.length} tracks from library`);
 
     if (libraryTracks.length === 0) {
       console.warn("No tracks found in user's library, using enhanced Spotify recommendations");
+      await progressTracker.updateStep('fallback_recommendations', 'active', 'Generating Spotify recommendations...');
+      
       const fallbackStart = Date.now();
       const targetCount = outputFormat === 'track' ? 1 : 10;
       const fallbackTracks = await generateEnhancedSpotifyRecommendations(token, mood, prompt, targetCount);
+      const fallbackDuration = Date.now() - fallbackStart;
+      
       metadata.steps.push({
         step: "fallback",
         name: "spotify_recommendations",
         result: `${fallbackTracks.length} tracks`,
-        duration: Date.now() - fallbackStart
+        duration: fallbackDuration
       });
+
+      await progressTracker.completeStep('fallback_recommendations', `${fallbackTracks.length} tracks`, fallbackDuration);
 
       return {
         recommendations: fallbackTracks,
@@ -195,22 +246,31 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     }
 
     // Step 3: Enhanced AI analysis with semantic understanding
+    await progressTracker.updateStep('ai_track_analysis', 'active', 'AI selecting best matches...');
     console.log("Step 3: Enhanced AI track analysis...");
     const aiStart = Date.now();
     const targetCount = outputFormat === 'track' ? 5 : 20;
     const aiSelectedTracks = await analyzeTracksWithEnhancedAI(libraryTracks, prompt, mood, targetCount, userId);
+    const aiDuration = Date.now() - aiStart;
+    
     metadata.steps.push({
       step: 3,
       name: "ai_track_analysis",
       result: `${aiSelectedTracks.length} tracks selected`,
-      duration: Date.now() - aiStart
+      duration: aiDuration
     });
+    
+    await progressTracker.completeStep('ai_track_analysis', `${aiSelectedTracks.length} tracks selected`, aiDuration);
     console.log(`AI selected ${aiSelectedTracks.length} tracks`);
 
     if (aiSelectedTracks.length === 0) {
       console.warn("AI couldn't find matching tracks, using enhanced fallback");
+      await progressTracker.updateStep('ai_fallback', 'active', 'Using fallback recommendations...');
+      
       const fallbackCount = outputFormat === 'track' ? 1 : 10;
       const fallbackTracks = await generateFallbackRecommendations(token, prompt, mood, [], fallbackCount);
+
+      await progressTracker.completeStep('ai_fallback', `${fallbackTracks.length} fallback tracks`);
 
       return {
         recommendations: fallbackTracks,
@@ -220,31 +280,39 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     }
 
     // Step 4: PARALLEL Audd.io analysis with simultaneous processing
+    await progressTracker.updateStep('parallel_audd_analysis', 'active', 'Analyzing audio features...');
     console.log("Step 4: PARALLEL Audd.io audio feature analysis...");
     const featureStart = Date.now();
 
-    // This now uses parallel processing instead of sequential
     const tracksWithFeatures = await enhancedFeatureAnalysisParallel(aiSelectedTracks, token);
+    const featureDuration = Date.now() - featureStart;
 
     metadata.steps.push({
       step: 4,
       name: "parallel_audd_analysis",
       result: `${tracksWithFeatures.length} tracks enhanced (parallel processing)`,
-      duration: Date.now() - featureStart,
+      duration: featureDuration,
       parallelProcessing: true
     });
+    
+    await progressTracker.completeStep('parallel_audd_analysis', `${tracksWithFeatures.length} tracks enhanced`, featureDuration);
     console.log(`Enhanced ${tracksWithFeatures.length} tracks with parallel Audd.io analysis`);
 
     // Step 5: Semantic evaluation and alignment
+    await progressTracker.updateStep('semantic_evaluation', 'active', 'Evaluating track quality...');
     console.log("Step 5: Semantic track alignment evaluation...");
     const evalStart = Date.now();
     const evaluation = await evaluateTrackAlignmentEnhanced(tracksWithFeatures, prompt, mood);
+    const evalDuration = Date.now() - evalStart;
+    
     metadata.steps.push({
       step: 5,
       name: "semantic_evaluation",
       result: `${evaluation.highQualityTracks.length} high-quality tracks`,
-      duration: Date.now() - evalStart
+      duration: evalDuration
     });
+    
+    await progressTracker.completeStep('semantic_evaluation', `${evaluation.highQualityTracks.length} high-quality tracks`, evalDuration);
     console.log(`Found ${evaluation.highQualityTracks.length} high-quality tracks`);
 
     let finalTracks = evaluation.highQualityTracks;
@@ -252,6 +320,7 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     // Step 6: Quality assurance and fallback integration
     const minRequired = outputFormat === 'track' ? 1 : 5;
     if (finalTracks.length < minRequired) {
+      await progressTracker.updateStep('quality_assurance', 'active', `Adding ${minRequired - finalTracks.length} more tracks...`);
       console.log(`Step 6: Fallback integration (have ${finalTracks.length}, need ${minRequired})`);
 
       const fallbackTracks = await generateFallbackRecommendations(
@@ -263,6 +332,7 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
       );
 
       finalTracks = [...finalTracks, ...fallbackTracks];
+      await progressTracker.completeStep('quality_assurance', `Added ${fallbackTracks.length} fallback tracks`);
       console.log(`Added ${fallbackTracks.length} fallback tracks, total: ${finalTracks.length}`);
     }
 
@@ -274,6 +344,8 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     }
 
     // Step 7: Format output based on type
+    await progressTracker.updateStep('finalizing', 'active', 'Finalizing recommendations...');
+    
     let result;
     if (outputFormat === 'track') {
       result = finalTracks.length > 0 ? [finalTracks[0]] : [];
@@ -282,6 +354,8 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     }
 
     metadata.timing.total = Date.now() - metadata.timing.start;
+
+    await progressTracker.completeStep('finalizing', `${result.length} recommendations ready`);
 
     console.log(`=== WORKFLOW COMPLETED IN ${metadata.timing.total}ms WITH PARALLEL PROCESSING ===`);
 
@@ -293,6 +367,7 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
 
   } catch (error) {
     console.error('Error in optimized mood recommendation workflow:', error);
+    await progressTracker.setError('workflow_error', error.message);
     metadata.error = error.message;
 
     // Emergency fallback
@@ -313,8 +388,8 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
   }
 }
 
-// ENHANCED CLASSIC RECOMMENDATION WORKFLOW  
-async function processClassicRecommendations(prompt, token, outputFormat) {
+// ENHANCED CLASSIC RECOMMENDATION WORKFLOW WITH PROGRESS TRACKING
+async function processClassicRecommendations(prompt, token, outputFormat, progressTracker) {
   const metadata = {
     workflow: "classic",
     steps: [],
@@ -325,22 +400,30 @@ async function processClassicRecommendations(prompt, token, outputFormat) {
     console.log("=== STARTING ENHANCED CLASSIC RECOMMENDATION WORKFLOW ===");
 
     // Step 1-5: Use the new enhanced classic recommendations system
+    await progressTracker.updateStep('classic_generation', 'active', 'Generating classic recommendations...');
     console.log("Step 1-5: Enhanced classic song generation pipeline...");
     const classicStart = Date.now();
     const classicTracks = await generateClassicRecommendations(prompt, token);
+    const classicDuration = Date.now() - classicStart;
+    
     metadata.steps.push({
       step: "1-5",
       name: "enhanced_classic_generation",
       result: `${classicTracks.length} classic tracks found`,
-      duration: Date.now() - classicStart
+      duration: classicDuration
     });
+    
+    await progressTracker.completeStep('classic_generation', `${classicTracks.length} classic tracks found`, classicDuration);
     console.log(`Generated ${classicTracks.length} classic recommendations`);
 
     if (classicTracks.length === 0) {
+      await progressTracker.setError('classic_generation', 'Could not find classic songs matching the prompt');
       throw new Error("Could not find classic songs matching the prompt");
     }
 
     // Step 6: Format output based on type and user requirements
+    await progressTracker.updateStep('formatting', 'active', 'Formatting results...');
+    
     let result;
     const userRequestedCount = extractCountFromPrompt(prompt);
 
@@ -354,6 +437,8 @@ async function processClassicRecommendations(prompt, token, outputFormat) {
     }
 
     metadata.timing.total = Date.now() - metadata.timing.start;
+    
+    await progressTracker.completeStep('formatting', `${result.length} tracks formatted`);
 
     return {
       recommendations: result,
@@ -362,12 +447,16 @@ async function processClassicRecommendations(prompt, token, outputFormat) {
 
   } catch (error) {
     console.error('Error in enhanced classic recommendation workflow:', error);
+    await progressTracker.setError('classic_workflow', error.message);
     metadata.error = error.message;
     metadata.timing.total = Date.now() - metadata.timing.start;
     throw error;
   }
 }
 
+// Keep all the existing helper functions unchanged
+// (fetchLibraryEnhanced, smartSampleLibrary, analyzeTracksWithEnhancedAI, etc.)
+// Just add the same functions from the original code here...
 
 // Smart library fetching with mood-based sampling
 async function fetchLibraryEnhanced(token, mood) {

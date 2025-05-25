@@ -68,10 +68,7 @@ button {
   100% { transform: rotate(360deg); }
 }
 
-/* Add this CSS to your global stylesheet or create a new CSS file */
-/* Mobile-first responsive styles for Moodify */
-
-/* Base mobile styles (default) */
+/* Track card styles */
 .track-card {
   position: relative;
 }
@@ -159,6 +156,101 @@ button {
 
 .button-text {
   display: inline-block;
+}
+
+/* Processing steps styles */
+.processing-container {
+  background: rgba(29, 185, 84, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+  border: 1px solid rgba(29, 185, 84, 0.2);
+}
+
+.processing-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.processing-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.processing-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+}
+
+.step-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.step-icon.completed {
+  background: #1db954;
+}
+
+.step-icon.active {
+  background: rgba(29, 185, 84, 0.3);
+  border-color: #1db954;
+}
+
+.step-icon.pending {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.step-icon.error {
+  background: rgba(255, 107, 107, 0.3);
+  border-color: #ff6b6b;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-label {
+  font-size: 14px;
+  font-weight: 400;
+  color: #fff;
+}
+
+.step-label.active {
+  font-weight: 600;
+}
+
+.step-label.completed {
+  color: #1db954;
+}
+
+.step-label.error {
+  color: #ff6b6b;
+}
+
+.step-result {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+}
+
+.processing-summary {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Tablet styles */
