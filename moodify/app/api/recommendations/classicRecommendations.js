@@ -347,25 +347,43 @@ async function combineAndVerifyAlignmentEnhanced(webResults, aiResults, original
       rankedSongs = await rankSongsBySementicSimilarity(finalCandidates, originalEmbedding, originalPrompt);
     }
 
-    // STEP 3: AI verification with reduced payload
+    // STEP 3: STRICT AI verification with enhanced filtering
     const verificationPrompt = `
-    You are a music quality controller. Your job is to **verify** that each suggested song genuinely fits the user's original request.
+    You are a STRICT music quality controller. Your job is to **ruthlessly filter** songs to ensure they PERFECTLY match the user's request.
     
-    Instructions:
-    1. Review the original user request carefully: "${originalPrompt}"
-    2. For each song, assess:
-       - Does it match the tone, theme, mood, artist, or topic of the request?
-    3. If the user requested a specific artist, prioritize songs from that artist.
-    4. If the user requested a specific genre/theme/era, prioritize the most representative songs.
-    5. Eliminate any that are weak matches, off-topic, or lack quality.
-    6. Assign an alignment_score from 1 to 10 for how well each song matches the request.
-    7. Return only the top ${constraints.targetCount || 15} songs with the highest scores.
+    CRITICAL RULES:
+    1. ONLY include songs that DIRECTLY match the user's request: "${originalPrompt}"
+    2. ELIMINATE any song that doesn't precisely fit the criteria
+    3. Be EXTREMELY selective - it's better to have fewer perfect matches than many loose matches
     
-    Output format: JSON array.
-    Each object must include all original song fields, with an added field:
-    - alignment_score (1–10)
+    SPECIFIC FILTERING CRITERIA:
+    - If user requests a SPECIFIC ARTIST: Only include songs BY that exact artist. Eliminate all others.
+    - If user requests a GENRE/THEME: Only include songs that genuinely belong to that genre/theme.
+    - If user requests a TIME PERIOD: Only include songs from that exact era.
+    - If user requests a LANGUAGE/CULTURE: Only include songs in that language or from that culture.
+    - If user requests a MOOD/EMOTION: Only include songs that truly convey that feeling.
+    - If user requests SONGS FROM MOVIES/DRAMAS: Only include actual soundtrack songs.
     
-    Return only the JSON array. No explanations, commentary, or markdown.
+    ELIMINATION CRITERIA (remove these immediately):
+    - Songs from wrong artists when specific artist requested
+    - Songs from wrong time periods when dates specified
+    - Songs in wrong language when language specified
+    - Songs that don't match the theme/mood requested
+    - Songs that are tangentially related but not direct matches
+    - Generic songs that happen to share keywords but miss the essence
+    
+    SCORING SYSTEM:
+    - 9-10: Perfect match, exactly what user wanted
+    - 7-8: Very good match, clearly fits the request
+    - 5-6: Decent match but not ideal
+    - 3-4: Weak match, barely related
+    - 1-2: Poor match, doesn't belong
+    
+    ONLY RETURN songs with alignment_score >= 7. Eliminate all others completely.
+    
+    Return format: JSON array with alignment_score field added.
+    If no songs meet the strict criteria, return an empty array [].
+    No explanations, only the JSON array.
     `;
 
     const response = await openai.chat.completions.create({
@@ -374,13 +392,21 @@ async function combineAndVerifyAlignmentEnhanced(webResults, aiResults, original
         { role: "system", content: verificationPrompt },
         { 
           role: "user", 
-          content: `Original request: "${originalPrompt}"
+          content: `ORIGINAL USER REQUEST: "${originalPrompt}"
 
-Songs to verify (already pre-filtered for quality):
-${JSON.stringify(rankedSongs, null, 2)}`
+ANALYSIS OF REQUEST:
+- Specific artist mentioned: ${constraints.specificArtist || 'None'}
+- Time period: ${constraints.decade || 'Any'}
+- Theme/Genre: ${constraints.mood || 'Not specified'}
+- Language/Culture: ${extractLanguageOrCulture(originalPrompt) || 'Not specified'}
+
+SONGS TO VERIFY (be extremely strict):
+${JSON.stringify(rankedSongs, null, 2)}
+
+Remember: ONLY return songs with alignment_score >= 7. Eliminate weak matches completely.`
         }
       ],
-      temperature: 0.2,
+      temperature: 0.1, // Lower temperature for more consistent strict filtering
       max_tokens: 3000,
     });
 
@@ -388,7 +414,49 @@ ${JSON.stringify(rankedSongs, null, 2)}`
     const jsonStr = content.replace(/```json|```/g, '').trim();
     const verified = JSON.parse(jsonStr);
     
-    return Array.isArray(verified) ? verified : rankedSongs.slice(0, constraints.targetCount || 15);
+    // Additional client-side filtering for extra strictness
+    const strictlyFiltered = Array.isArray(verified) ? verified.filter(song => {
+      // Must have alignment score of 7 or higher
+      if (!song.alignment_score || song.alignment_score < 7) return false;
+      
+      // If user specified an artist, song must be from that artist
+      if (constraints.specificArtist) {
+        const requestedArtist = constraints.specificArtist.toLowerCase().trim();
+        const songArtist = song.artist?.toLowerCase().trim() || '';
+        if (!songArtist.includes(requestedArtist) && !requestedArtist.includes(songArtist)) {
+          return false;
+        }
+      }
+      
+      // If user specified a decade, song should be from that period
+      if (constraints.decade && song.year) {
+        const requestedDecade = parseInt(constraints.decade);
+        const songYear = parseInt(song.year);
+        if (Math.abs(songYear - requestedDecade) > 10) {
+          return false;
+        }
+      }
+      
+      // Check for language/culture specific requests
+      const culturalKeywords = extractLanguageOrCulture(originalPrompt);
+      if (culturalKeywords) {
+        const songText = `${song.title} ${song.artist} ${song.genre || ''} ${song.match_reason || ''}`.toLowerCase();
+        if (!culturalKeywords.some(keyword => songText.includes(keyword.toLowerCase()))) {
+          return false;
+        }
+      }
+      
+      return true;
+    }) : [];
+    
+    console.log(`Strict verification: ${rankedSongs.length} -> ${strictlyFiltered.length} songs after filtering`);
+    
+    // If we have too few results after strict filtering, log warning but return what we have
+    if (strictlyFiltered.length < (constraints.minCount || 5)) {
+      console.warn(`Warning: Only ${strictlyFiltered.length} songs passed strict verification. Consider loosening criteria.`);
+    }
+    
+    return strictlyFiltered.slice(0, constraints.targetCount || 15);
 
   } catch (err) {
     console.error("Enhanced alignment verification failed:", err.message);
@@ -505,6 +573,34 @@ function findBestTrackMatch(tracks, targetSong) {
   
   // Return best match if score is reasonable
   return scoredTracks[0].score > 0.6 ? scoredTracks[0].track : tracks[0];
+}
+
+// NEW UTILITY FUNCTION: Extract language or cultural keywords from prompt
+function extractLanguageOrCulture(prompt) {
+  const culturalKeywords = {
+    'korean': ['korean', 'k-pop', 'kpop', 'k-drama', 'kdrama', 'korea'],
+    'chinese': ['chinese', 'mandarin', 'cantonese', 'china', 'taiwan', 'hong kong'],
+    'japanese': ['japanese', 'j-pop', 'jpop', 'japan', 'anime'],
+    'spanish': ['spanish', 'latino', 'latin', 'mexico', 'spain'],
+    'french': ['french', 'france'],
+    'indian': ['indian', 'bollywood', 'hindi', 'india'],
+    'arabic': ['arabic', 'arab', 'middle east'],
+    'german': ['german', 'germany'],
+    'italian': ['italian', 'italy'],
+    'russian': ['russian', 'russia']
+  };
+  
+  const lowerPrompt = prompt.toLowerCase();
+  
+  for (const [culture, keywords] of Object.entries(culturalKeywords)) {
+    for (const keyword of keywords) {
+      if (lowerPrompt.includes(keyword)) {
+        return keywords;
+      }
+    }
+  }
+  
+  return null;
 }
 
 // UTILITY FUNCTIONS
