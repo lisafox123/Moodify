@@ -116,8 +116,8 @@ const ProcessingSteps = ({ steps, currentStep, isGenerating }) => {
               }}
             >
               <div className={`step-icon ${isError ? 'error' :
-                  isCompleted ? 'completed' :
-                    isActive ? 'active' : 'pending'
+                isCompleted ? 'completed' :
+                  isActive ? 'active' : 'pending'
                 }`}>
                 {isError ? '❌' :
                   isCompleted ? <CheckIcon /> :
@@ -127,8 +127,8 @@ const ProcessingSteps = ({ steps, currentStep, isGenerating }) => {
 
               <div className="step-content">
                 <div className={`step-label ${isError ? 'error' :
-                    isActive ? 'active' :
-                      isCompleted ? 'completed' : ''
+                  isActive ? 'active' :
+                    isCompleted ? 'completed' : ''
                   }`}>
                   {stepDef.label}
                 </div>
@@ -185,8 +185,6 @@ const ToggleSwitch = ({ isOn, label, leftText, rightText, onToggle }) => {
     </div>
   );
 };
-
-// TrackCard component
 const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, clickedTrackId, userData, onFeedbackSubmitted, expanded, onToggleExpand }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -242,8 +240,11 @@ const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, cl
           onClick={() => onStoryClick(track.id, track.artists[0].name, track.name)}
           className="action-button story-button"
           style={{
-            ...styles.storyButton,
-            ...(isLoading && clickedTrackId === track.id ? styles.buttonDisabled : {})
+            ...styles.actionButton,
+            ...(isLoading && clickedTrackId === track.id ? styles.buttonDisabled : {}),
+            backgroundColor: 'rgba(231, 231, 137, 0.2)',
+            color: '#73669F',
+            background: 'none', // Explicitly override any background shorthand
           }}
           disabled={isLoading && clickedTrackId === track.id}
         >
@@ -300,7 +301,6 @@ const TrackCard = ({ track, index, isRecommendation, onStoryClick, isLoading, cl
     </div>
   );
 };
-
 export default function Home() {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -342,6 +342,11 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [clickedTrackId, setClickedTrackId] = useState(null);
   const [currentRequestId, setCurrentRequestId] = useState(null);
+
+  const [lyrics, setLyrics] = useState('');
+  const [isLoadingLyrics, setIsLoadingLyrics] = useState(false);
+  const [isLoadingStory, setIsLoadingStory] = useState(false);
+
 
 
   // Sample prompt buttons
@@ -742,47 +747,186 @@ export default function Home() {
     setIsGenerating(false);
     setCurrentRequestId(null);
   };
+  // Function to fetch lyrics
+  const fetchLyricsForTrack = async (artist, song) => {
+    console.log('Fetching lyrics for:', { artist, song });
 
-  const getStoryForTrack = async (artist, song) => {
-    setIsLoading(true);
+    setIsLoadingLyrics(true);
+    setError(null);
+
     try {
+      const requestBody = {
+        artist: artist?.trim() || '',
+        song: song?.trim() || ''
+      };
+
+      console.log('Lyrics request body:', requestBody);
+
+      const response = await fetch('/api/fetch_lyrics', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('Lyrics response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Lyrics response error:', errorText);
+        throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Lyrics response data:', data);
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (!data.lyrics || data.lyrics.length < 10) {
+        throw new Error('No lyrics found or lyrics too short');
+      }
+
+      console.log('Lyrics fetched successfully, length:', data.lyrics.length);
+      return data.lyrics;
+
+    } catch (error) {
+      console.error('Error in fetchLyricsForTrack:', error.message);
+      throw error;
+    } finally {
+      setIsLoadingLyrics(false);
+    }
+  };
+
+  // Function to generate story from lyrics
+  const generateStoryFromLyrics = async (lyrics, artist, song) => {
+    console.log('Generating story from lyrics for:', { artist, song });
+
+    setIsLoadingStory(true);
+    setError(null);
+
+    try {
+      const requestBody = {
+        lyrics: lyrics,
+        artist: artist?.trim() || '',
+        song: song?.trim() || '',
+        customStory: customStory?.trim() || ''
+      };
+
+      console.log('Story generation request body keys:', Object.keys(requestBody));
+
       const response = await fetch('/api/story_agent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ artist, song, customStory: customStory ? customStory : '' }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('Story response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Story response error:', errorText);
+        throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('Story response data keys:', Object.keys(data));
+
       if (data.error) {
         throw new Error(data.error);
       }
-      return data.story;
+
+      // Handle different possible response structures
+      let story = null;
+
+      if (data.story) {
+        story = data.story;
+        console.log('Found story in data.story');
+      } else if (data.generated_story) {
+        story = data.generated_story;
+        console.log('Found story in data.generated_story');
+      } else {
+        console.log('Available response fields:', Object.keys(data));
+        const possibleStoryFields = ['story', 'generated_story', 'content', 'text', 'result'];
+        for (const field of possibleStoryFields) {
+          if (data[field] && typeof data[field] === 'string' && data[field].length > 50) {
+            story = data[field];
+            console.log(`Found story in data.${field}`);
+            break;
+          }
+        }
+      }
+
+      if (!story) {
+        throw new Error('No story content found in response');
+      }
+
+      console.log('Story generated successfully, length:', story.length);
+      return story;
+
     } catch (error) {
-      console.error('Unable to get story:', error.message);
-      return `Error: ${error.message}`;
+      console.error('Error in generateStoryFromLyrics:', error.message);
+      throw error;
     } finally {
-      setIsLoading(false);
-      setClickedTrackId(null);
+      setIsLoadingStory(false);
     }
   };
 
+  // Updated handleTrackClick function
   const handleTrackClick = async (trackId, artist, song) => {
+    console.log('Track clicked:', { trackId, artist, song });
+
     setClickedTrackId(trackId);
+    setError(null);
+    setLyrics(''); // Clear previous lyrics
+    setStory(''); // Clear previous story
+
+    // Immediately open modal with loading state
+    setIsModalOpen(true);
+    setTrackId(trackId);
+
     try {
-      const trackStory = await getStoryForTrack(artist, song);
-      setStory(trackStory);
-      setTrackId(trackId);
-      setIsModalOpen(true);
+      // Step 1: Fetch lyrics first
+      console.log('Step 1: Fetching lyrics...');
+      const trackLyrics = await fetchLyricsForTrack(artist, song);
+
+      if (trackLyrics && trackLyrics.length > 0) {
+        setLyrics(trackLyrics);
+        console.log('Lyrics set in state, length:', trackLyrics.length);
+
+        // Step 2: Generate story from the fetched lyrics
+        console.log('Step 2: Generating story from lyrics...');
+        const trackStory = await generateStoryFromLyrics(trackLyrics, artist, song);
+
+        if (trackStory && trackStory.length > 0) {
+          setStory(trackStory);
+          console.log('Story set in state, length:', trackStory.length);
+        } else {
+          setStory('Story generation completed but no content was returned. Please try again.');
+        }
+      } else {
+        setLyrics('Unable to fetch lyrics for this track.');
+        setStory('Cannot generate story without lyrics. Please try again.');
+      }
+
     } catch (error) {
-      console.error('Error handling track story:', error);
-      setStory(`Error: ${error.message}`);
-      setIsModalOpen(true);
+      console.error('Error in handleTrackClick:', error);
+      const errorMessage = `Error: ${error.message}. Please try again.`;
+
+      if (isLoadingLyrics) {
+        setLyrics(`Error fetching lyrics: ${error.message}`);
+      } else if (isLoadingStory) {
+        setStory(`Error generating story: ${error.message}`);
+      } else {
+        setLyrics(errorMessage);
+        setStory(errorMessage);
+      }
+    } finally {
+      setClickedTrackId(null);
     }
   };
 
@@ -1057,17 +1201,23 @@ export default function Home() {
           </div>
         )}
       </main>
-
       {isModalOpen && (
-        <StoryModal
-          story={story}
-          trackId={trackId}
-          onClose={() => {
-            setIsModalOpen(false);
-            setStory(null);
-            setTrackId(null);
-          }}
-        />
+        <>
+          {console.log('Rendering modal with:', { story, trackId, isModalOpen })}
+          <StoryModal
+            lyrics={lyrics}
+            story={story || 'No story available'}
+            trackId={trackId}
+            isLoading={isLoading}
+            onClose={() => {
+              console.log('Modal onClose triggered');
+              setIsModalOpen(false);
+              setStory(null);
+              setTrackId(null);
+              setError(null);
+            }}
+          />
+        </>
       )}
     </div>
   );

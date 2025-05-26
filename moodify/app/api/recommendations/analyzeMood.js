@@ -1,50 +1,37 @@
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function analyzeMood(prompt) {
   try {
     console.log("Analyzing mood for prompt:", prompt);
     
-    const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are a music expert categorizing moods for playlists.
-      Your goal is to interpret the user's mood description and reduce it to **one standard keyword** for mood classification.
-      
-      Think carefully about the emotional intent of the phrase.
-      
-      Valid moods include (but are not limited to): energetic, calm, melancholy, upbeat, sad, happy, focused, relaxed, party, romantic, nostalgic, balanced, chill, dark.
-      
-      Output ONLY a JSON like:
-      {"mood": "happy"}
-      
-      Never explain your answer. Return only the JSON.`
-          },
-          {
-            role: "user",
-            content: `What mood best describes this: "${prompt}"`
-          }
-        ],
-        temperature: 0.2, // Lower for consistency
-        max_tokens: 50
-      });
+    const response = await fetch('http://54.152.238.168:8000/analyze-mood', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'accept': 'application/json'
+      },
+      body: JSON.stringify({
+        text: prompt
+      })
+    });
 
-    const content = response.choices[0]?.message?.content || "";
-    
-    // Try to extract JSON
-    try {
-      const result = JSON.parse(content);
-      return result.mood || "balanced";
-    } catch (parseError) {
-      // If we can't parse JSON, look for a single word
-      const moodMatch = content.match(/["']?(\w+)["']?/);
-      return moodMatch ? moodMatch[1] : "balanced";
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    const data = await response.json();
+    
+    // Check if there's an error in the response
+    if (data.error) {
+      console.error('FastAPI error:', data.error);
+      return "balanced";
+    }
+
+    // Extract mood from the analysis
+    const moodAnalysis = data.mood_analysis || "";
+    console.log("Received mood analysis:", moodAnalysis);
+    
+    // Parse the mood analysis to extract a single mood keyword
+    return moodAnalysis;
+    
   } catch (error) {
     console.error('Error analyzing mood:', error);
     return "balanced";

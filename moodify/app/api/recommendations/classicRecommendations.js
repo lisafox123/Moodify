@@ -379,7 +379,7 @@ async function combineAndVerifyAlignmentEnhanced(webResults, aiResults, original
     - 3-4: Weak match, barely related
     - 1-2: Poor match, doesn't belong
     
-    ONLY RETURN songs with alignment_score >= 7. Eliminate all others completely.
+    ONLY RETURN songs with alignment_score >= 6. Eliminate all others completely.
     
     Return format: JSON array with alignment_score field added.
     If no songs meet the strict criteria, return an empty array [].
@@ -403,7 +403,7 @@ ANALYSIS OF REQUEST:
 SONGS TO VERIFY (be extremely strict):
 ${JSON.stringify(rankedSongs, null, 2)}
 
-Remember: ONLY return songs with alignment_score >= 7. Eliminate weak matches completely.`
+Remember: ONLY return songs with alignment_score >= 6. Eliminate weak matches completely.`
         }
       ],
       temperature: 0.1, // Lower temperature for more consistent strict filtering
@@ -452,7 +452,7 @@ Remember: ONLY return songs with alignment_score >= 7. Eliminate weak matches co
     console.log(`Strict verification: ${rankedSongs.length} -> ${strictlyFiltered.length} songs after filtering`);
     
     // If we have too few results after strict filtering, log warning but return what we have
-    if (strictlyFiltered.length < (constraints.minCount || 5)) {
+    if (strictlyFiltered.length === 0 && rankedSongs.length > 0) {
       console.warn(`Warning: Only ${strictlyFiltered.length} songs passed strict verification. Consider loosening criteria.`);
     }
     
