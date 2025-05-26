@@ -71,13 +71,13 @@ async function analyzeUserPrompt(prompt) {
           role: "system",
           content: `You are an expert music analyst and search query optimizer. Your task is to:
 1. Extract key musical elements (genre, mood, era, artist, themes)
-2. Identify specific constraints (count, decade, style preferences)
-3. Generate optimized search queries for finding classic songs
+2. Identify specific constraints (count, decade, specific artists, style preferences)
+3. Generate optimized search queries for finding songs
 4. Create a refined prompt for AI song generation
 
 Return a JSON object with:
 - originalIntent: Brief summary of user's request
-- musicalElements: Array of key elements (genre, mood, era, themes, album)
+- musicalElements: Array of key elements (genre, mood, era, themes, album, artist)
 - constraints: Object with {targetCount, minCount, decade, specificArtist, mood}
 - searchQueries: Array of 2~3 best Google search queries
 - refinedPrompt: Enhanced prompt for AI generation
@@ -122,8 +122,8 @@ Return a JSON object with:
         specificArtist: null,
         mood: "balanced"
       },
-      searchQueries: [`"${prompt}" classic songs`, `${prompt} greatest hits`],
-      refinedPrompt: `Find classic and timeless songs that match: ${prompt}`,
+      searchQueries: [`"${prompt}" songs`, `${prompt} music`],
+      refinedPrompt: `Find songs that match: ${prompt}`,
       semanticKeywords: prompt.split(' '),
       originalEmbedding: null
     };
@@ -225,8 +225,10 @@ async function generateAIRecommendations(refinedPrompt, constraints) {
     const systemPrompt = `You are a world-renowned music curator. Your expertise spans all genres and eras, from the 1940s to today.
 
 Your role:
-- Select timeless, critically acclaimed songs that align with user requests.
+- Select songs that perfectly align with user requests, whether they want specific artists, genres, themes, or eras.
 - Explain clearly why each song fits the request, including cultural or historical significance.
+- If the user requests a specific artist, focus on that artist's best songs that match the theme.
+- If the user requests a specific genre/theme/era, include the most representative and high-quality songs.
 
 For each song, return an object with the following fields:
 - title
@@ -234,10 +236,10 @@ For each song, return an object with the following fields:
 - album
 - year
 - genre
-- match_reason (why it matches the user’s request)
+- match_reason (why it matches the user's request)
 - cultural_impact_score (1–10, based on legacy, innovation, and recognition)
 
-Avoid repetition. Cover a variety of artists, decades, and styles when appropriate.`;
+Follow the user's intent exactly - if they want a specific artist, focus on that artist. If they want a genre/theme, find the best songs in that category.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4",
@@ -253,7 +255,7 @@ Constraints:
 - Specific artist: ${constraints.specificArtist || "none"}
 - Mood/theme: ${constraints.mood || "balanced"}
 
-Only include timeless classics that have stood the test of time and are strongly aligned with the request.
+Find songs that strongly align with the user's exact request. If they specified an artist, focus on that artist. If they specified a genre/theme/era, find the best representative songs.
 
 Return as a JSON array. Do not include any preamble or explanation.` 
         }
@@ -297,7 +299,7 @@ async function combineAndVerifyAlignmentEnhanced(webResults, aiResults, original
         else if (song.source === 'serp_organic') score += 1;
         
         // Prefer songs with year information
-        if (song.year && song.year >= 1940 && song.year <= 2010) score += 2;
+        if (song.year && song.year >= 1940 && song.year <= 2024) score += 2;
         else if (song.year) score += 1;
         
         // Prefer songs with genre classification
@@ -352,10 +354,12 @@ async function combineAndVerifyAlignmentEnhanced(webResults, aiResults, original
     Instructions:
     1. Review the original user request carefully: "${originalPrompt}"
     2. For each song, assess:
-       - Does it match the tone, theme, mood, or topic of the request?
-    3. Eliminate any that are weak matches, off-topic, or lack impact.
-    4. Assign an alignment_score from 1 to 10 for how well each song matches the request.
-    5. Return only the top ${constraints.targetCount || 15} songs with the highest scores.
+       - Does it match the tone, theme, mood, artist, or topic of the request?
+    3. If the user requested a specific artist, prioritize songs from that artist.
+    4. If the user requested a specific genre/theme/era, prioritize the most representative songs.
+    5. Eliminate any that are weak matches, off-topic, or lack quality.
+    6. Assign an alignment_score from 1 to 10 for how well each song matches the request.
+    7. Return only the top ${constraints.targetCount || 15} songs with the highest scores.
     
     Output format: JSON array.
     Each object must include all original song fields, with an added field:
