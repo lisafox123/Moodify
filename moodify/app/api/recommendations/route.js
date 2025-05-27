@@ -387,43 +387,41 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     }
   }
 }
-
-// ENHANCED CLASSIC RECOMMENDATION WORKFLOW WITH PROGRESS TRACKING
+// ENHANCED CLASSIC RECOMMENDATION WORKFLOW WITH DETAILED PROGRESS TRACKING
+// ENHANCED CLASSIC RECOMMENDATION WORKFLOW USING REAL API CALLS
 async function processClassicRecommendations(prompt, token, outputFormat, progressTracker) {
   const metadata = {
-    workflow: "classic",
+    workflow: "classic_enhanced_real",
     steps: [],
     timing: { start: Date.now() }
   };
 
   try {
-    console.log("=== STARTING ENHANCED CLASSIC RECOMMENDATION WORKFLOW ===");
+    console.log("=== STARTING REAL CLASSIC RECOMMENDATION WORKFLOW ===");
+    console.log(`Prompt: "${prompt}", Format: ${outputFormat}`);
 
-    // Step 1-5: Use the new enhanced classic recommendations system
-    await progressTracker.updateStep('classic_generation', 'active', 'Generating classic recommendations...');
-    console.log("Step 1-5: Enhanced classic song generation pipeline...");
+    // Use the REAL generateClassicRecommendations function with progress tracking
+    // This function already has all the steps and real API calls built-in
     const classicStart = Date.now();
-    const classicTracks = await generateClassicRecommendations(prompt, token);
+    const classicTracks = await generateClassicRecommendations(prompt, token, progressTracker.requestId);
     const classicDuration = Date.now() - classicStart;
     
     metadata.steps.push({
-      step: "1-5",
+      step: "1-11",
       name: "enhanced_classic_generation",
-      result: `${classicTracks.length} classic tracks found`,
+      result: `${classicTracks.length} classic tracks found using real APIs`,
       duration: classicDuration
     });
     
-    await progressTracker.completeStep('classic_generation', `${classicTracks.length} classic tracks found`, classicDuration);
-    console.log(`Generated ${classicTracks.length} classic recommendations`);
+    console.log(`Real classic recommendations completed: ${classicTracks.length} tracks found`);
 
+    // Validate we have results
     if (classicTracks.length === 0) {
       await progressTracker.setError('classic_generation', 'Could not find classic songs matching the prompt');
       throw new Error("Could not find classic songs matching the prompt");
     }
 
-    // Step 6: Format output based on type and user requirements
-    await progressTracker.updateStep('formatting', 'active', 'Formatting results...');
-    
+    // Format output based on type and user requirements
     let result;
     const userRequestedCount = extractCountFromPrompt(prompt);
 
@@ -437,8 +435,7 @@ async function processClassicRecommendations(prompt, token, outputFormat, progre
     }
 
     metadata.timing.total = Date.now() - metadata.timing.start;
-    
-    await progressTracker.completeStep('formatting', `${result.length} tracks formatted`);
+    console.log(`=== REAL CLASSIC WORKFLOW COMPLETED IN ${metadata.timing.total}ms ===`);
 
     return {
       recommendations: result,
@@ -446,14 +443,13 @@ async function processClassicRecommendations(prompt, token, outputFormat, progre
     };
 
   } catch (error) {
-    console.error('Error in enhanced classic recommendation workflow:', error);
-    await progressTracker.setError('classic_workflow', error.message);
+    console.error('Error in real classic recommendation workflow:', error);
+    // Error handling is already done inside generateClassicRecommendations
     metadata.error = error.message;
     metadata.timing.total = Date.now() - metadata.timing.start;
     throw error;
   }
 }
-
 // Keep all the existing helper functions unchanged
 // (fetchLibraryEnhanced, smartSampleLibrary, analyzeTracksWithEnhancedAI, etc.)
 // Just add the same functions from the original code here...
