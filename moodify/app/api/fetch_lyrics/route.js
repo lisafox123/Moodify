@@ -3,6 +3,7 @@ import { DynamicTool } from '@langchain/core/tools';
 // Environment variables
 const braveApiKey = process.env.BRAVE_API_KEY;
 const openaiApiKey = process.env.OPENAI_API_KEY;
+const geniusApiKey = process.env.GENIUS_API_KEY;
 
 if (!braveApiKey) {
   throw new Error('BRAVE_API_KEY is missing');
@@ -10,6 +11,10 @@ if (!braveApiKey) {
 
 if (!openaiApiKey) {
   throw new Error('OPENAI_API_KEY is missing');
+}
+
+if (!geniusApiKey) {
+  throw new Error('GENIUS_API_KEY is missing');
 }
 
 // OpenAI client for evaluation and formatting
@@ -42,7 +47,187 @@ async function callOpenAI(messages, temperature = 0.3, maxTokens = 4000) {
   }
 }
 
-// Enhanced function to fetch raw content from a specific URL
+// Improved song matching function
+async function searchSongOnGenius(artist, song) {
+  try {
+    console.log(`Searching for song on Genius API: ${artist} - ${song}`);
+
+    const searchQuery = `${artist} ${song}`;
+    const searchUrl = `https://api.genius.com/search?q=${encodeURIComponent(searchQuery)}`;
+
+    const response = await fetch(searchUrl, {
+      headers: {
+        'Authorization': `Bearer ${geniusApiKey}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Genius API search failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.response || !data.response.hits || data.response.hits.length === 0) {
+      console.log('No results found on Genius API');
+      return null;
+    }
+
+    const hits = data.response.hits;
+    let bestMatch = null;
+    let bestScore = 0;
+
+    // Normalize inputs for comparison
+    const queryArtist = normalizeString(artist);
+    const queryTitle = normalizeString(song);
+
+    for (const hit of hits) {
+      const result = hit.result;
+      if (!result) continue;
+
+      const resultArtist = normalizeString(result.primary_artist?.name || '');
+      const resultTitle = normalizeString(result.title || '');
+
+      // Calculate improved similarity score
+      const score = calculateSongSimilarity(
+        queryArtist, queryTitle,
+        resultArtist, resultTitle,
+        artist, song
+      );
+
+      console.log(`Candidate: ${result.primary_artist?.name} - ${result.title} (Score: ${score})`);
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = result;
+      }
+    }
+
+    // Require minimum threshold for acceptance
+    const MIN_SCORE_THRESHOLD = 70;
+
+    if (bestMatch && bestScore >= MIN_SCORE_THRESHOLD) {
+      console.log(`✓ Best match: ${bestMatch.primary_artist.name} - ${bestMatch.title} (Score: ${bestScore})`);
+      return bestMatch;
+    }
+
+    console.log(`✗ No good match found. Best score: ${bestScore} (threshold: ${MIN_SCORE_THRESHOLD})`);
+    return null;
+  } catch (error) {
+    console.error('Genius API search error:', error.message);
+    return null;
+  }
+}
+
+// Normalize strings for better comparison
+function normalizeString(str) {
+  return str
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, ' ')    // Normalize whitespace
+    .trim();
+}
+
+// Improved similarity calculation
+function calculateSongSimilarity(queryArtist, queryTitle, resultArtist, resultTitle, originalArtist, originalTitle) {
+  let score = 0;
+
+  // Exact matches (highest priority)
+  if (queryArtist === resultArtist) {
+    score += 40;
+  } else if (isCloseMatch(queryArtist, resultArtist)) {
+    score += 30;
+  } else if (resultArtist.includes(queryArtist) || queryArtist.includes(resultArtist)) {
+    const lengthRatio = Math.min(queryArtist.length, resultArtist.length) /
+      Math.max(queryArtist.length, resultArtist.length);
+    score += 15 * lengthRatio;
+  }
+
+  if (queryTitle === resultTitle) {
+    score += 40;
+  } else if (isCloseMatch(queryTitle, resultTitle)) {
+    score += 30;
+  } else if (resultTitle.includes(queryTitle) || queryTitle.includes(resultTitle)) {
+    const lengthRatio = Math.min(queryTitle.length, resultTitle.length) /
+      Math.max(queryTitle.length, resultTitle.length);
+    score += 15 * lengthRatio;
+  }
+
+  // Bonus for exact case-sensitive matches
+  if (originalArtist.toLowerCase() === resultArtist.toLowerCase()) {
+    score += 10;
+  }
+  if (originalTitle.toLowerCase() === resultTitle.toLowerCase()) {
+    score += 10;
+  }
+
+  // Penalty for extra words
+  const artistWordDiff = Math.abs(queryArtist.split(' ').length - resultArtist.split(' ').length);
+  const titleWordDiff = Math.abs(queryTitle.split(' ').length - resultTitle.split(' ').length);
+  score -= (artistWordDiff + titleWordDiff) * 5;
+
+  // Bonus for common artist patterns
+  if (isCommonArtistVariation(queryArtist, resultArtist)) {
+    score += 15;
+  }
+
+  return Math.max(0, score);
+}
+
+// Check if two strings are close matches
+function isCloseMatch(str1, str2) {
+  const variations = [
+    [str1, str2],
+    [str1.replace(/\s+/g, ''), str2.replace(/\s+/g, '')],
+    [str1.replace(/&/g, 'and'), str2.replace(/&/g, 'and')],
+    [str1.replace(/ft|feat/g, 'featuring'), str2.replace(/ft|feat/g, 'featuring')],
+  ];
+
+  for (const [v1, v2] of variations) {
+    if (v1 === v2) return true;
+    if (levenshteinDistance(v1, v2) <= 2 && Math.abs(v1.length - v2.length) <= 2) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Check for common artist name variations
+function isCommonArtistVariation(query, result) {
+  const withoutThe1 = query.replace(/^the\s+/i, '');
+  const withoutThe2 = result.replace(/^the\s+/i, '');
+  if (withoutThe1 === result || withoutThe2 === query) return true;
+
+  const baseName1 = query.split(/\s+(?:ft|feat|featuring)\s+/i)[0];
+  const baseName2 = result.split(/\s+(?:ft|feat|featuring)\s+/i)[0];
+  if (baseName1 === baseName2) return true;
+
+  return false;
+}
+
+// Levenshtein distance implementation
+function levenshteinDistance(str1, str2) {
+  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,
+        matrix[j - 1][i] + 1,
+        matrix[j - 1][i - 1] + cost
+      );
+    }
+  }
+
+  return matrix[str2.length][str1.length];
+}
+
+// Enhanced function to fetch raw content from URL
 async function fetchContentFromUrl(url) {
   try {
     const response = await fetch(url, {
@@ -55,273 +240,264 @@ async function fetchContentFromUrl(url) {
         'Upgrade-Insecure-Requests': '1'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     const html = await response.text();
     console.log(`Fetched content length: ${html.length} characters`);
-    
     return html;
-    
+
   } catch (error) {
     console.error(`Error fetching from ${url}:`, error.message);
     return null;
   }
 }
-// Enhanced Genius.com specific extraction - handles the data-lyrics-container structure
-async function extractGeniusContent(html) {
-  console.log('Extracting content from Genius.com with enhanced methods...');
 
-  // Method 1: More precise extraction from data-lyrics-container divs
-  // This pattern ensures we only get the actual lyrics content
-  const lyricsContainerPattern = /<div[^>]*data-lyrics-container="true"[^>]*>([\s\S]*?)(?=<\/div>\s*(?:<div[^>]*data-lyrics-container|<div[^>]*class="[^"]*Sidebar|<aside|<footer|$))/gi;
-  const containerMatches = [...html.matchAll(lyricsContainerPattern)];
-  
-  if (containerMatches.length > 0) {
-    console.log(`Found ${containerMatches.length} lyrics containers`);
-    
-    const allContent = containerMatches.map((match, index) => {
-      console.log(`Processing container ${index + 1}, raw length: ${match[1].length}`);
-      
-      // Skip containers that are too large (likely contain non-lyrical content)
-      if (match[1].length > 20000) {
-        console.log(`Container ${index + 1} is too large (${match[1].length} chars), likely contains non-lyrical content`);
-        return '';
-      }
-      
-      let content = match[1];
-      
-      // Remove entire header section and all its nested content
-      content = content.replace(/<div[^>]*class="[^"]*LyricsHeader[^"]*"[^>]*>[\s\S]*?(?:<\/div>\s*){3,}/gi, '');
-      
-      // Remove any remaining UI elements
-      content = content
-        .replace(/<button[^>]*>[\s\S]*?<\/button>/gi, '')
-        .replace(/<div[^>]*class="[^"]*Dropdown[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
-        .replace(/<div[^>]*class="[^"]*Contributors[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
-      
-      // Extract text from links, preserving lyrics content
-      content = content.replace(/<a[^>]*href="[^"]*"[^>]*(?:class="[^"]*ReferentFragment[^"]*"[^>]*)?>((?:<span[^>]*>)?)([\s\S]*?)((?:<\/span>)?)<\/a>/g, '$2');
-      
-      // Remove all span tags but keep their content
-      content = content.replace(/<span[^>]*>/g, '').replace(/<\/span>/g, '');
-      
-      // Handle section markers
-      content = content.replace(/\[(Verse|Chorus|Bridge|Pre-Chorus|Outro|Intro|Instrumental Break|Refrain).*?\]/gi, '\n[$1]\n');
-      
-      // Convert <br> tags to newlines
-      content = content.replace(/<br\s*\/?>/gi, '\n');
-      
-      // Remove any remaining HTML tags
-      content = content.replace(/<[^>]+>/g, '');
-      
-      // Clean up HTML entities
-      content = content
-        .replace(/&quot;/g, '"')
-        .replace(/&#x27;|&#39;/g, "'")
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&nbsp;/g, ' ');
-      
-      // Remove non-lyrical content patterns
-      content = content
-        .replace(/See .* Live/gi, '')
-        .replace(/Get tickets as low as .*/gi, '')
-        .replace(/You might also like.*/gi, '')
-        .replace(/\d+ Contributors?/gi, '')
-        .replace(/Embed/gi, '')
-        .replace(/Share/gi, '')
-        .replace(/Translations?/gi, '');
-      
-      // Clean up whitespace
-      content = content
-        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
-        .replace(/[ \t]+/g, ' ') // Normalize horizontal spaces
-        .replace(/\n\s*\n\s*\n/g, '\n\n') // Max 2 consecutive newlines
-        .replace(/^\s+|\s+$/gm, '') // Trim each line
-        .trim();
-      
-      console.log(`Container ${index + 1} processed, final length: ${content.length}`);
-      if (content.length > 0 && content.length < 50) {
-        console.log(`Container ${index + 1} full content: ${content}`);
-      } else if (content.length > 0) {
-        console.log(`Container ${index + 1} preview: ${content.substring(0, 100)}...`);
-      }
-      
-      return content;
-    });
-    
-    // Filter out empty or very short containers, and containers with non-lyrical content
-    const validContent = allContent.filter(content => {
-      if (content.length < 50) return false;
-      // Check if content looks like lyrics (has newlines, typical lyrics patterns)
-      if (!content.includes('\n')) return false;
-      // Skip if it's mostly numbers or special characters
-      const alphaRatio = (content.match(/[a-zA-Z]/g) || []).length / content.length;
-      if (alphaRatio < 0.5) return false;
-      return true;
-    });
-    
-    console.log(`Valid containers: ${validContent.length}/${allContent.length}`);
-    
-    if (validContent.length > 0) {
-      const combinedContent = validContent
-        .join('\n\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-      
-      console.log(`Successfully extracted ${combinedContent.length} characters of lyrics`);
-      return combinedContent;
+// Enhanced Genius content extraction
+async function extractGeniusContentEnhanced(html) {
+  console.log('Starting enhanced Genius content extraction...');
+
+  // Method 1: Specific structure extractor
+  let result = extractFromSpecificGeniusStructure(html);
+  if (result && result.length > 200) {
+    console.log('✓ Specific structure extraction successful');
+    return result;
+  }
+
+  // Method 2: Enhanced container extraction
+  result = extractFromLyricsContainers(html);
+  if (result && result.length > 200) {
+    console.log('✓ Enhanced container extraction successful');
+    return result;
+  }
+
+  console.log('✗ All extraction methods failed');
+  return '';
+}
+
+// Specific extractor for Genius HTML structure
+function extractFromSpecificGeniusStructure(html) {
+  console.log('Attempting extraction from specific Genius structure...');
+
+  const specificPattern = /<div[^>]*data-lyrics-container="true"[^>]*class="[^"]*Lyrics__Container[^"]*"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>[\s\S]*?<\/div>/gi;
+  const matches = [...html.matchAll(specificPattern)];
+
+  if (matches.length > 0) {
+    console.log(`Found ${matches.length} specific structure matches`);
+
+    let allLyrics = matches
+      .map((match, index) => {
+        console.log(`Processing specific match ${index + 1}`);
+        let content = match[1];
+
+        content = content
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&quot;/g, '"')
+          .replace(/&#x27;|&#39;/g, "'")
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/[ \t]+/g, ' ')
+          .replace(/\n\s*\n\s*\n/g, '\n\n')
+          .replace(/^\s+|\s+$/gm, '')
+          .trim();
+
+        console.log(`Specific match ${index + 1} length: ${content.length}`);
+        return content;
+      })
+      .filter(content => content.length > 50)
+      .join('\n\n');
+
+    if (allLyrics.length > 200) {
+      console.log(`Specific extraction successful: ${allLyrics.length} characters`);
+      return allLyrics;
     }
   }
 
-  // Method 2: More targeted extraction for specific lyrics sections
-  console.log('Attempting alternative extraction method...');
-  
-  // Try to find lyrics between specific markers
-  const lyricsSectionPattern = /<div[^>]*data-lyrics-container="true"[^>]*>([\s\S]*?)<\/div>(?=\s*<div[^>]*(?:data-lyrics-container|class="[^"]*(?:Sidebar|Footer|Ad)[^"]*")|$)/gi;
-  const lyricsMatches = [...html.matchAll(lyricsSectionPattern)];
-  
-  for (const match of lyricsMatches) {
-    let sectionContent = match[1];
-    
-    // Skip if it contains too many non-lyrical elements
-    if (sectionContent.includes('LyricsHeader') || 
-        sectionContent.includes('Contributors') || 
-        sectionContent.includes('Dropdown')) {
-      
-      // Clean it first
-      sectionContent = sectionContent
-        .replace(/<div[^>]*class="[^"]*(?:Header|Contributors|Dropdown)[^"]*"[^>]*>[\s\S]*?<\/div>(?:\s*<\/div>)*/gi, '')
-        .replace(/<button[^>]*>[\s\S]*?<\/button>/gi, '');
+  return null;
+}
+
+// Enhanced container extraction method
+function extractFromLyricsContainers(html) {
+  console.log('Extracting from lyrics containers with enhanced logic...');
+
+  const containerPattern = /<div[^>]*data-lyrics-container="true"[^>]*>([\s\S]*?)<\/div>/gi;
+  const containers = [...html.matchAll(containerPattern)];
+
+  if (containers.length === 0) {
+    console.log('No lyrics containers found');
+    return null;
+  }
+
+  console.log(`Found ${containers.length} lyrics containers`);
+
+  let allLyrics = [];
+
+  for (let i = 0; i < containers.length; i++) {
+    let containerContent = containers[i][1];
+    console.log(`Processing container ${i + 1}, raw size: ${containerContent.length}`);
+
+    if (containerContent.includes('LyricsHeader') && containerContent.length < 1000) {
+      console.log(`Container ${i + 1} appears to be header, skipping`);
+      continue;
     }
-    
-    // Extract lyrics content
-    let lyrics = sectionContent
-      // Extract text from all links
-      .replace(/<a[^>]*>([\s\S]*?)<\/a>/g, (match, content) => {
-        // Remove nested spans but keep text
-        return content.replace(/<span[^>]*>([\s\S]*?)<\/span>/g, '$1').replace(/<[^>]+>/g, '');
-      })
-      // Remove remaining spans
-      .replace(/<span[^>]*>([\s\S]*?)<\/span>/g, '$1')
-      // Convert breaks
-      .replace(/<br\s*\/?>/gi, '\n')
-      // Remove remaining tags
-      .replace(/<[^>]+>/g, '')
-      // Decode entities
-      .replace(/&quot;/g, '"')
-      .replace(/&#x27;|&#39;/g, "'")
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      // Clean whitespace
-      .replace(/[\u200B-\u200D\uFEFF]/g, '')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    
-    // Check if this looks like actual lyrics
-    if (lyrics.length > 100 && lyrics.includes('\n')) {
-      console.log(`Found lyrics section with ${lyrics.length} characters`);
+
+    containerContent = removeHeaderSections(containerContent);
+    let lyrics = extractLyricsFromContainer(containerContent);
+
+    if (lyrics && lyrics.length > 30) {
+      console.log(`Container ${i + 1} extracted: ${lyrics.length} chars`);
+      allLyrics.push(lyrics);
+    }
+  }
+
+  if (allLyrics.length === 0) {
+    console.log('No valid lyrics found in any container');
+    return null;
+  }
+
+  let combined = allLyrics.join('\n\n');
+  combined = smartDeduplicate(combined);
+  combined = combined.replace(/\n{3,}/g, '\n\n').trim();
+
+  console.log(`Combined lyrics: ${combined.length} characters from ${allLyrics.length} containers`);
+  return combined;
+}
+
+// Remove header sections
+function removeHeaderSections(content) {
+  return content
+    .replace(/<div[^>]*class="[^"]*LyricsHeader[^"]*"[^>]*>[\s\S]*?<\/div>(?:\s*<\/div>)*/gi, '')
+    .replace(/<button[^>]*class="[^"]*Contributors[^"]*"[^>]*>[\s\S]*?<\/button>/gi, '')
+    .replace(/<div[^>]*class="[^"]*Dropdown[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
+    .replace(/<div[^>]*class="[^"]*MetadataTooltip[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+    .replace(/<div[^>]*class="[^"]*(?:Header|Title|Menu|Nav)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+}
+
+// Extract lyrics content from container
+function extractLyricsFromContainer(content) {
+  if (!content) return '';
+
+  const pTagMatch = content.match(/<p[^>]*>([\s\S]*?)<\/p>/);
+  if (pTagMatch) {
+    content = pTagMatch[1];
+  }
+
+  let lyrics = content
+    .replace(/<a[^>]*href="[^"]*"[^>]*(?:class="[^"]*ReferentFragment[^"]*"[^>]*)?>([\s\S]*?)<\/a>/g, '$1')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .replace(/^\s+|\s+$/gm, '')
+    .trim();
+
+  return lyrics;
+}
+
+// Smart deduplication
+function smartDeduplicate(content) {
+  const lines = content.split('\n');
+  const result = [];
+  const seenContent = new Map();
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      result.push(line);
+      continue;
+    }
+
+    if (trimmed.match(/^\[[\w\s:-]+\]$/)) {
+      result.push(line);
+      continue;
+    }
+
+    const normalized = trimmed.toLowerCase();
+    const count = seenContent.get(normalized) || 0;
+
+    if (count < 3) {
+      seenContent.set(normalized, count + 1);
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
+}
+
+// Fetch lyrics from Genius
+async function fetchLyricsFromGenius(songData) {
+  try {
+    console.log(`Fetching lyrics from Genius for: ${songData.title}`);
+
+    if (!songData.url) {
+      throw new Error('No URL provided for song');
+    }
+
+    const html = await fetchContentFromUrl(songData.url);
+
+    if (!html) {
+      throw new Error('Failed to fetch song page content');
+    }
+
+    const lyrics = await extractGeniusContentEnhanced(html);
+
+    if (!lyrics || lyrics.length < 100) {
+      throw new Error('Failed to extract sufficient lyrics from Genius page');
+    }
+
+    console.log(`✓ Successfully extracted lyrics from Genius (${lyrics.length} characters)`);
+    return lyrics;
+  } catch (error) {
+    console.error('Enhanced Genius lyrics fetch error:', error.message);
+    throw error;
+  }
+}
+
+// Primary function to fetch lyrics using Genius API
+async function fetchLyricsWithGeniusAPI(artist, song) {
+  try {
+    console.log(`\n=== Attempting Genius API First ===`);
+
+    const songData = await searchSongOnGenius(artist, song);
+
+    if (!songData) {
+      console.log('Song not found on Genius API, will try Brave Search as fallback');
+      return null;
+    }
+
+    const lyrics = await fetchLyricsFromGenius(songData);
+
+    if (lyrics) {
+      console.log('Successfully fetched lyrics via Genius API');
       return lyrics;
     }
-  }
-  
-  // Method 3: Find lyrics by looking for verse/chorus patterns
-  console.log('Attempting pattern-based extraction...');
-  
-  // Remove script and style tags first
-  const cleanedHtml = html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '');
-  
-  // Look for sections that contain lyrics patterns
-  const versePattern = /(?:\[(?:Verse|Chorus|Bridge|Pre-Chorus|Outro|Intro|Refrain).*?\][\s\S]*?){2,}/gi;
-  const matches = cleanedHtml.match(versePattern);
-  
-  if (matches) {
-    for (const match of matches) {
-      const cleaned = match
-        .replace(/<[^>]+>/g, '')
-        .replace(/&quot;/g, '"')
-        .replace(/&#x27;|&#39;/g, "'")
-        .replace(/&amp;/g, '&')
-        .trim();
-      
-      if (cleaned.length > 200) {
-        console.log(`Pattern-based extraction found ${cleaned.length} characters`);
-        return cleaned;
-      }
-    }
-  }
 
-  // Method 3: Extract from script tags if other methods fail
-  console.log('Attempting to extract from embedded JSON...');
-  
-  const scriptPattern = /<script[^>]*>[\s\S]*?window\.__PRELOADED_STATE__\s*=\s*JSON\.parse\(([\s\S]*?)\);[\s\S]*?<\/script>/;
-  const scriptMatch = html.match(scriptPattern);
-  
-  if (scriptMatch) {
-    try {
-      // Extract and clean the JSON string
-      let jsonString = scriptMatch[1];
-      if (jsonString.startsWith("'") || jsonString.startsWith('"')) {
-        jsonString = jsonString.slice(1, -1);
-      }
-      
-      // Unescape the JSON string
-      jsonString = jsonString
-        .replace(/\\"/g, '"')
-        .replace(/\\'/g, "'")
-        .replace(/\\\\/g, '\\')
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '\r')
-        .replace(/\\t/g, '\t');
-      
-      const data = JSON.parse(jsonString);
-      
-      // Navigate through possible paths to find lyrics
-      const possiblePaths = [
-        data?.songPage?.lyricsData?.body?.html,
-        data?.songPage?.lyrics?.body?.html,
-        data?.lyrics?.body?.html,
-        data?.song?.lyrics
-      ];
-      
-      for (const lyricsHtml of possiblePaths) {
-        if (lyricsHtml) {
-          const cleanedLyrics = lyricsHtml
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<[^>]+>/g, '')
-            .replace(/&quot;/g, '"')
-            .replace(/&#x27;|&#39;/g, "'")
-            .replace(/&amp;/g, '&')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-          
-          if (cleanedLyrics.length > 100) {
-            console.log(`Extracted ${cleanedLyrics.length} characters from embedded JSON`);
-            return cleanedLyrics;
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Error parsing embedded JSON:', e.message);
-    }
+    console.log('Failed to extract lyrics from Genius page, will try Brave Search as fallback');
+    return null;
+  } catch (error) {
+    console.error('Genius API lyrics fetch error:', error.message);
+    return null;
   }
-  
-  console.log('All extraction methods exhausted');
-  return '';
 }
 
 // Generic content extraction for other sites
 async function extractGenericContent(html, url) {
   console.log(`Extracting content from generic site: ${url}`);
-  
+
   if (url.includes('azlyrics.com')) {
     const lyricsMatch = html.match(/<!-- Usage of azlyrics\.com content[\s\S]*?-->([\s\S]*?)<!-- MxM banner -->/);
     if (lyricsMatch) {
@@ -336,19 +512,18 @@ async function extractGenericContent(html, url) {
         .trim();
     }
   }
-  
-  // Generic extraction - look for substantial text blocks
+
   const cleanedHtml = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<head[\s\S]*?<\/head>/gi, '');
-  
+
   const textBlocks = [...cleanedHtml.matchAll(/<div[^>]*>([\s\S]*?)<\/div>/gi)];
   const candidates = textBlocks
     .map(match => match[1].replace(/<[^>]*>/g, '').trim())
     .filter(text => text.length > 200 && text.includes('\n'))
     .sort((a, b) => b.length - a.length);
-  
+
   return candidates.length > 0 ? candidates[0] : '';
 }
 
@@ -356,7 +531,7 @@ async function extractGenericContent(html, url) {
 async function evaluateSearchResults(results, artist, song) {
   try {
     console.log('Evaluating search results with OpenAI...');
-    
+
     const top5Results = results.slice(0, 5).map((result, index) => ({
       index: index + 1,
       title: result.title || 'No title',
@@ -399,7 +574,7 @@ Return JSON:
     ];
 
     const evaluation = await callOpenAI(evaluationPrompt, 0.1, 1000);
-    
+
     try {
       let cleanedEvaluation = evaluation.trim();
       if (cleanedEvaluation.startsWith('```json')) {
@@ -407,11 +582,10 @@ Return JSON:
       } else if (cleanedEvaluation.startsWith('```')) {
         cleanedEvaluation = cleanedEvaluation.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
-      
+
       return JSON.parse(cleanedEvaluation);
     } catch (parseError) {
       console.error('Failed to parse evaluation:', parseError.message);
-      // Fallback ranking
       return {
         rankings: top5Results.map((result, index) => ({
           original_index: result.index,
@@ -427,46 +601,59 @@ Return JSON:
   }
 }
 
-// Format content using OpenAI - enhanced for better cleaning
+// Format content using OpenAI
 async function formatContentWithAI(rawContent, artist, song) {
   try {
     console.log('Formatting content with OpenAI...');
-    
+
+    let preCleanedContent = rawContent
+      .replace(/^.*?".*?" is an? .*? (lament|song|track|piece).*?\n/gim, '')
+      .replace(/^.*?Lyrics$/gim, '')
+      .replace(/^\s*\d+\s*Contributors?\s*$/gim, '')
+      .replace(/^\s*(Translations?|Share|Embed)\s*$/gim, '')
+      .replace(/^.*?View.*?Stats.*$/gim, '')
+      .trim();
+
     const maxInputLength = 15000;
-    const truncatedContent = rawContent.length > maxInputLength 
-      ? rawContent.substring(0, maxInputLength) + '\n...[truncated]'
-      : rawContent;
-    
+    const truncatedContent = preCleanedContent.length > maxInputLength
+      ? preCleanedContent.substring(0, maxInputLength) + '\n...[truncated]'
+      : preCleanedContent;
+
     const formattingPrompt = [
       {
         role: 'system',
-        content: `You are an expert at cleaning and formatting song lyrics from web content. Your task is to:
+        content: `You are an expert at cleaning and formatting song lyrics. Your task is to:
 
-1. Extract ONLY the main lyrics content from the raw text
-2. Remove all HTML tags, metadata, and navigation elements
-3. Remove section labels like [Verse], [Chorus], [Bridge], [Pre-Chorus], [Outro], [Intro], etc.
-4. Remove website elements like "Contributors", "Translations", "Share", "Embed"
-5. Remove copyright notices, website names, and advertisements
-6. Clean up spacing and line breaks for proper readability
-7. Preserve the natural structure and flow of the lyrics
-8. Remove duplicate lines while preserving intentional repetition (like choruses)
-9. Ensure proper capitalization and punctuation
-10. Return ONLY the cleaned lyrics text without markdown or additional formatting
+1. PRESERVE ALL ACTUAL SONG LYRICS - this is the most important rule
+2. Remove only obvious website elements, navigation, and metadata
+3. Keep section labels like [Verse], [Chorus], [Bridge] etc. - they are part of the lyrics structure
+4. Remove only these specific elements: "Contributors", "Translations", "Share", "Embed", song descriptions
+5. Clean up excessive whitespace but preserve line breaks that separate verses/sections
+6. Keep all the actual singing/vocal content
+7. Preserve intentional repetition (choruses, refrains, etc.)
+8. Do NOT summarize or shorten the actual lyrics content
+9. Return the complete, cleaned lyrics text
 
-Focus on extracting the core lyrical content while removing all web page artifacts and metadata.`
+The goal is to clean formatting while keeping 100% of the actual song lyrics intact.`
       },
       {
         role: 'user',
-        content: `Please clean and format these raw lyrics for "${song}" by "${artist}":
+        content: `Please clean and format these lyrics for "${song}" by "${artist}". Keep ALL the actual lyrics content:
 
 ${truncatedContent}
 
-Return only the cleaned lyrics text without any additional formatting or commentary.`
+Return the complete cleaned lyrics without any summarization.`
       }
     ];
 
-    const formattedContent = await callOpenAI(formattingPrompt, 0.1, 2000);
-    console.log('OpenAI formatting completed');
+    const formattedContent = await callOpenAI(formattingPrompt, 0.1, 4000);
+    console.log(`OpenAI formatting completed - Input: ${truncatedContent.length} chars, Output: ${formattedContent.length} chars`);
+
+    if (formattedContent.length < truncatedContent.length * 0.3) {
+      console.log('OpenAI formatting resulted in too much content loss, using basic cleanup instead');
+      return basicCleanup(rawContent);
+    }
+
     return formattedContent.trim();
   } catch (error) {
     console.error('OpenAI formatting error:', error.message);
@@ -477,43 +664,32 @@ Return only the cleaned lyrics text without any additional formatting or comment
 // Basic cleanup fallback
 function basicCleanup(rawContent) {
   return rawContent
-    // Remove HTML tags
     .replace(/<[^>]*>/g, '')
-    // Remove section labels
-    .replace(/\[Verse\s*\d*\]/gi, '')
-    .replace(/\[Chorus\]/gi, '')
-    .replace(/\[Bridge\]/gi, '')
-    .replace(/\[Outro\]/gi, '')
-    .replace(/\[Intro\]/gi, '')
-    .replace(/\[Pre-Chorus\]/gi, '')
-    .replace(/\[.*?\]/g, '')
-    // Remove HTML entities
     .replace(/&quot;/g, '"')
     .replace(/&#x27;|&#39;/g, "'")
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    // Remove website elements
-    .replace(/\d+\s*Contributors?/gi, '')
-    .replace(/Translations?/gi, '')
-    .replace(/Share/gi, '')
-    .replace(/Embed/gi, '')
-    // Clean up spacing
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/\s{2,}/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/^\s*\d+\s*Contributors?\s*$/gim, '')
+    .replace(/^\s*(Translations?|Share|Embed)\s*$/gim, '')
+    .replace(/^.*?Lyrics$/gim, '')
+    .replace(/^.*?".*?" is an? .*? (lament|song|track|piece).*$/gim, '')
+    .replace(/\n{4,}/g, '\n\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
     .replace(/^\s+|\s+$/gm, '')
     .trim();
 }
 
-// Main function to fetch lyrics using Brave Search API
+// Fallback function using Brave Search API
 async function fetchLyricsWithBraveAPI(artist, song) {
   try {
-    console.log(`Fetching lyrics via enhanced Brave Search API: ${artist} - ${song}`);
-    
-    // Search for lyrics using Brave Search API
+    console.log(`\n=== Fallback: Using Brave Search API ===`);
+    console.log(`Fetching lyrics via Brave Search API: ${artist} - ${song}`);
+
     const searchQuery = `${artist} ${song} lyrics`;
     const braveUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(searchQuery)}`;
-    
+
     const response = await fetch(braveUrl, {
       headers: {
         'Accept': 'application/json',
@@ -521,50 +697,46 @@ async function fetchLyricsWithBraveAPI(artist, song) {
         'X-Subscription-Token': braveApiKey
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Brave Search API request failed: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log('Brave Search API search completed');
-    
+
     if (!data.web || !data.web.results || data.web.results.length === 0) {
       throw new Error('No search results found');
     }
 
-    // Evaluate results using OpenAI
     const evaluation = await evaluateSearchResults(data.web.results, artist, song);
-    
-    // Try to fetch content from URLs in ranked order
     let rawContent = null;
     const rankedResults = evaluation.rankings.sort((a, b) => b.score - a.score);
-    
-    for (const ranking of rankedResults.slice(0, 3)) { // Only try top 3 results
+
+    for (const ranking of rankedResults.slice(0, 3)) {
       const resultIndex = ranking.original_index - 1;
       const result = data.web.results[resultIndex];
-      
+
       if (!result || !result.url) continue;
-      
-      // Check if it's a lyrics site
+
       if (result.url.includes('genius.com') ||
-          result.url.includes('azlyrics.com') ||
-          result.url.includes('lyrics.com') ||
-          result.url.includes('metrolyrics.com') ||
-          result.url.includes('lyricfind.com') ||
-          result.url.includes('songlyrics.com')) {
-        
+        result.url.includes('azlyrics.com') ||
+        result.url.includes('lyrics.com') ||
+        result.url.includes('metrolyrics.com') ||
+        result.url.includes('lyricfind.com') ||
+        result.url.includes('songlyrics.com')) {
+
         try {
           console.log(`Trying ranked result #${ranking.original_index}: ${result.url}`);
           const html = await fetchContentFromUrl(result.url);
-          
+
           if (html) {
             if (result.url.includes('genius.com')) {
-              rawContent = await extractGeniusContent(html);
+              rawContent = await extractGeniusContentEnhanced(html);
             } else {
               rawContent = await extractGenericContent(html, result.url);
             }
-            
+
             if (rawContent && rawContent.length > 50) {
               console.log(`Successfully extracted content (score: ${ranking.score}, length: ${rawContent.length})`);
               break;
@@ -576,15 +748,14 @@ async function fetchLyricsWithBraveAPI(artist, song) {
         }
       }
     }
-    
-    // Fallback: Check search result descriptions if no URL worked
+
     if (!rawContent || rawContent.length < 50) {
       console.log('Trying fallback: checking search result descriptions...');
       for (const result of data.web.results.slice(0, 5)) {
         if (result.description && result.description.length > 200) {
-          if (result.description.includes('lyrics') || 
-              result.description.includes('verse') || 
-              result.description.includes('chorus')) {
+          if (result.description.includes('lyrics') ||
+            result.description.includes('verse') ||
+            result.description.includes('chorus')) {
             rawContent = result.description;
             console.log('Found potential lyrics in search result description');
             break;
@@ -592,10 +763,10 @@ async function fetchLyricsWithBraveAPI(artist, song) {
         }
       }
     }
-    
+
     return rawContent;
   } catch (error) {
-    console.error('Enhanced Brave Search API lyrics fetch error:', error.message);
+    console.error('Brave Search API lyrics', error.message);
     return null;
   }
 }
@@ -604,14 +775,14 @@ async function fetchLyricsWithBraveAPI(artist, song) {
 export async function POST(req) {
   try {
     const { artist, song } = await req.json();
-    
+
     if (!artist || !song) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           success: false,
-          error: '必須提供 artist 和 song 參數' 
+          error: '必須提供 artist 和 song 參數'
         }),
-        { 
+        {
           status: 400,
           headers: { 'Content-Type': 'application/json' }
         }
@@ -621,43 +792,62 @@ export async function POST(req) {
     console.log(`\n=== Enhanced Lyrics Fetch Request ===`);
     console.log(`Artist: ${artist}`);
     console.log(`Song: ${song}`);
-    console.log(`Using enhanced extraction methods with OpenAI formatting`);
+    console.log(`Strategy: Genius API first, then Brave Search fallback`);
     console.log(`=====================================\n`);
 
-    // Fetch lyrics using enhanced Brave Search API
-    const rawLyrics = await fetchLyricsWithBraveAPI(artist, song);
-    
+    let rawLyrics = null;
+    let fetchMethod = '';
+
+    // Step 1: Try Genius API first
+    rawLyrics = await fetchLyricsWithGeniusAPI(artist, song);
+
+    if (rawLyrics && rawLyrics.length >= 50) {
+      fetchMethod = 'genius_api';
+      console.log(`✓ Successfully fetched lyrics via Genius API (${rawLyrics.length} chars)`);
+    } else {
+      // Step 2: Fallback to Brave Search API
+      console.log('⚠ Genius API failed, trying Brave Search API as fallback...');
+      rawLyrics = await fetchLyricsWithBraveAPI(artist, song);
+
+      if (rawLyrics && rawLyrics.length >= 50) {
+        fetchMethod = 'brave_search_api';
+        console.log(`✓ Successfully fetched lyrics via Brave Search API (${rawLyrics.length} chars)`);
+      }
+    }
+
     if (!rawLyrics || rawLyrics.length < 50) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           success: false,
-          error: `無法通過Brave Search API獲取《${song}》的歌詞，請檢查歌曲名稱或稍後再試`,
-          suggestion: '請確認歌手和歌曲名稱的正確性'
+          error: `無法獲取《${song}》的歌詞，已嘗試 Genius API 和 Brave Search API`,
+          suggestion: '請確認歌手和歌曲名稱的正確性，或稍後再試',
+          methods_tried: ['genius_api', 'brave_search_api']
         }),
-        { 
+        {
           status: 404,
           headers: { 'Content-Type': 'application/json' }
         }
       );
     }
 
-    console.log(`Raw lyrics fetched (${rawLyrics.length} chars)`);
+    console.log(`Raw lyrics fetched via ${fetchMethod} (${rawLyrics.length} chars)`);
 
     // Format lyrics using enhanced OpenAI processing
     const formattedLyrics = await formatContentWithAI(rawLyrics, artist, song);
     console.log(`Lyrics formatted with enhanced AI processing (${formattedLyrics.length} chars)`);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         lyrics: formattedLyrics,
         artist: artist,
         song: song,
         lyrics_length: formattedLyrics.length,
         processing_method: 'enhanced_openai_extraction',
+        fetch_method: fetchMethod,
         fetched_at: new Date().toISOString()
       }),
-      { 
+      {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       }
@@ -666,12 +856,12 @@ export async function POST(req) {
   } catch (error) {
     console.error('Enhanced Lyrics API Error:', error.message);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: false,
         error: `歌詞獲取錯誤: ${error.message}`,
         timestamp: new Date().toISOString()
       }),
-      { 
+      {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       }
