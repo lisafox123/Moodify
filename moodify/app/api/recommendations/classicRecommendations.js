@@ -152,47 +152,47 @@ async function analyzeUserPromptWithOpenAI(prompt) {
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo",
+      model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: `You are an expert music analyst. Analyze the user's request and extract:
+          content: `
+You are a highly accurate and detail-oriented music analyst AI. Your task is to deeply interpret the user's request about music and return a well-structured JSON analysis.
 
-1. Musical elements (genre, mood, era, themes)
-2. Specific constraints (count, decade, artist, language)
-3. Cultural context and preferences
-4. Search optimization strategies
-
-Be extremely accurate in understanding user intent. Common patterns:
-- "songs like X" → find similar style/mood to X
-- "X songs" where X is a number → exact count needed
-- Cultural indicators: language, country, regional styles
-- Mood indicators: sad, happy, energetic, calm, romantic
-- Era indicators: 80s, 90s, classic, vintage, modern
-
-Return JSON with:
+### Your output must include:
 {
-  "originalIntent": "concise summary",
-  "musicalElements": ["genre", "mood", "era"],
+  "originalIntent": "Short and precise summary of what the user is asking",
+  "musicalElements": ["genre", "mood", "era", "theme"],
   "constraints": {
-    "targetCount": number,
-    "minCount": number,
-    "decade": "1980s" or null,
+    "targetCount": number (null if unspecified),
+    "minCount": number (null if unspecified),
+    "decade": "e.g. 1980s" or null,
     "specificArtist": "artist name" or null,
-    "mood": "specific mood",
-    "language": "language preference"
+    "mood": "emotionally inferred mood" or null,
+    "language": "language preference if detected" or null
   },
-  "searchQueries": ["optimized query 1", "query 2"],
-  "refinedPrompt": "enhanced prompt for AI",
-  "semanticKeywords": ["key", "words"],
+  "searchQueries": ["optimized search 1", "search 2"],
+  "refinedPrompt": "A rewritten, clarified, and highly structured version of the original user request for LLM input",
+  "semanticKeywords": ["keywords", "from", "intent"],
   "culturalContext": {
     "language": "detected language",
-    "culture": "cultural context",
-    "region": "geographic region",
-    "keywords": ["cultural", "keywords"]
+    "culture": "inferred cultural context",
+    "region": "if geographically hinted",
+    "keywords": ["cultural", "related", "phrases"]
   },
-  "confidenceScore": 0.95
-}`
+  "confidenceScore": 0.0–1.0 (how confident you are about your interpretation)
+}
+
+### Common Interpretation Patterns:
+- "Songs like X" → Similar mood, artist style, genre
+- "N songs" → Set a ${targetCount}
+- “Love songs from 90s Bollywood” → mood: romantic, decade: 1990s, language: Hindi
+- “Sad anime ending songs” → mood: melancholic, theme: anime
+- Movie or scene references (e.g., "songs from Baby Driver" → extract soundtrack style)
+- Language or culture (e.g., Korean indie, Latin pop)
+
+Avoid ambiguity. Fill nulls only if not inferable. Only return valid JSON.
+        `.trim()
         },
         {
           role: "user",
@@ -200,7 +200,7 @@ Return JSON with:
         }
       ],
       temperature: 0.2,
-      max_tokens: 1000,
+      max_tokens: 1200,
     });
 
     const content = response.choices[0]?.message?.content || "";
@@ -410,6 +410,7 @@ Rules:
 3. If a count is specified, return EXACTLY that many songs
 4. Include mix of popular hits and quality deep cuts
 5. Ensure cultural/language preferences are respected
+6. If a language is specified, include ONLY songs in the language
 
 Return ONLY a JSON array of songs with these fields:
 {

@@ -1206,7 +1206,7 @@ export default function Home() {
           {console.log('Rendering modal with:', { story, trackId, isModalOpen })}
           <StoryModal
             lyrics={lyrics}
-            story={story || 'No story available'}
+            story={story || 'Story is generating...'}
             trackId={trackId}
             isLoading={isLoading}
             onClose={() => {

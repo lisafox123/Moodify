@@ -18,8 +18,8 @@ const StoryModal = ({ lyrics, story, trackId, isLoadingLyrics, isLoadingStory, o
     if (isLoadingLyrics) {
       return (
         <div style={styles.loadingSection}>
-          <h3 style={styles.sectionTitle}>歌詞</h3>
-          <div style={styles.loadingText}>正在獲取歌詞...</div>
+          <h3 style={styles.sectionTitle}>Lyrics</h3>
+          <div style={styles.loadingText}>Fetching Lyrics...</div>
         </div>
       );
     }
@@ -28,11 +28,11 @@ const StoryModal = ({ lyrics, story, trackId, isLoadingLyrics, isLoadingStory, o
       return null;
     }
 
-    const isError = lyrics.startsWith('錯誤') || lyrics.includes('無法') || lyrics.includes('Error');
+    const isError = lyrics.startsWith('Error') || lyrics.includes('Cannot') || lyrics.includes('Error');
     
     return (
       <div style={styles.lyricsSection}>
-        <h3 style={styles.sectionTitle}>歌詞</h3>
+        <h3 style={styles.sectionTitle}>Lyrics</h3>
         <div style={isError ? styles.errorContent : styles.lyricsContent}>
           {lyrics}
         </div>
@@ -44,8 +44,8 @@ const StoryModal = ({ lyrics, story, trackId, isLoadingLyrics, isLoadingStory, o
     if (isLoadingStory) {
       return (
         <div style={styles.loadingSection}>
-          <h3 style={styles.sectionTitle}>歌曲故事</h3>
-          <div style={styles.loadingText}>正在生成故事...</div>
+          <h3 style={styles.sectionTitle}>Story</h3>
+          <div style={styles.loadingText}>Story Generating</div>
         </div>
       );
     }
@@ -58,7 +58,7 @@ const StoryModal = ({ lyrics, story, trackId, isLoadingLyrics, isLoadingStory, o
     
     return (
       <div style={styles.storySection}>
-        <h3 style={styles.sectionTitle}>歌曲故事</h3>
+        <h3 style={styles.sectionTitle}>Story</h3>
         <div style={isError ? styles.errorContent : styles.storyContent}>
           {story}
         </div>
