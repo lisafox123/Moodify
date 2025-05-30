@@ -15,7 +15,10 @@ export const metadata = {
   title: "Moodify",
   description: "Let's find your music of the day",
   icons: {
-    icon: '/logo.png',
+    icon: [
+      { url: '/logo.png' },
+      { url: '/logo.png', sizes: '32x32', type: 'image/png' },
+    ],
   },
 };
 
