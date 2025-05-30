@@ -1,450 +1,330 @@
-// Enhanced Audd.io API integration with parallel processing
-export async function analyzeTracksWithAuddParallel(tracks) {
-    try {
-      console.log(`Analyzing ${tracks.length} tracks with Audd.io (parallel processing)`);
-      
-      const auddApiToken = process.env.AUDDIO_API_KEY || 'test';
-      const maxConcurrent = 5; // Adjust based on your API rate limits
-      const delayBetweenBatches = 1000; // 1 second between batches
-      
-      // Process tracks in parallel batches
-      const results = await processTracksInParallelBatches(
-        tracks, 
-        auddApiToken, 
-        maxConcurrent, 
-        delayBetweenBatches
-      );
-      
-      const successfulAnalyses = results.filter(r => r.features && !r.error);
-      console.log(`Audd.io parallel analysis complete: ${successfulAnalyses.length}/${results.length} successful`);
-      
-      return results;
-      
-    } catch (error) {
-      console.error('Error in Audd.io parallel analysis:', error);
-      return tracks.map(track => ({
-        track_id: track.id,
-        features: generateFallbackFeatures(track),
-        error: error.message
-      }));
-    }
+// Configuration
+const FASTAPI_BASE_URL = 'http://54.152.238.168:8000'; // Adjust this to your FastAPI server URL
+
+// Helper function to extract track ID from Spotify URL or URI
+function extractTrackId(track) {
+  if (typeof track === 'string') {
+    // Handle Spotify URLs and URIs
+    const urlMatch = track.match(/track\/([a-zA-Z0-9]+)/);
+    const uriMatch = track.match(/spotify:track:([a-zA-Z0-9]+)/);
+    return urlMatch ? urlMatch[1] : (uriMatch ? uriMatch[1] : null);
+  } else if (track && track.id) {
+    return track.id;
   }
+  return null;
+}
+
+// Function to fetch track data from Spotify API in batches
+async function fetchSpotifyTracksBatch(trackIds, token) {
+  const batchSize = 50; // Spotify allows up to 50 tracks per request
+  const allTracks = [];
   
-  // Process tracks in parallel batches with proper rate limiting
-  async function processTracksInParallelBatches(tracks, apiToken, maxConcurrent, delayBetweenBatches) {
-    const allResults = [];
+  for (let i = 0; i < trackIds.length; i += batchSize) {
+    const batch = trackIds.slice(i, i + batchSize);
+    const idsParam = batch.join(',');
     
-    // Split tracks into batches
-    for (let i = 0; i < tracks.length; i += maxConcurrent) {
-      const batch = tracks.slice(i, i + maxConcurrent);
-      console.log(`Processing batch ${Math.floor(i / maxConcurrent) + 1}/${Math.ceil(tracks.length / maxConcurrent)} (${batch.length} tracks)`);
-      
-      // Process batch in parallel
-      const batchPromises = batch.map(track => 
-        analyzeTrackWithAuddioSafe(track, apiToken)
-      );
-      
-      try {
-        const batchResults = await Promise.allSettled(batchPromises);
-        
-        // Process results from Promise.allSettled
-        const processedBatchResults = batchResults.map((result, index) => {
-          const track = batch[index];
-          
-          if (result.status === 'fulfilled' && result.value) {
-            return result.value;
-          } else {
-            // Handle failed promises
-            const error = result.status === 'rejected' ? result.reason : 'Analysis failed';
-            console.warn(`Failed to analyze ${track.name}: ${error.message || error}`);
-            
-            return {
-              track_id: track.id,
-              features: generateFallbackFeatures(track),
-              error: error.message || error.toString()
-            };
-          }
-        });
-        
-        allResults.push(...processedBatchResults);
-        
-        // Add delay between batches (except for the last batch)
-        if (i + maxConcurrent < tracks.length) {
-          await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
-        }
-        
-      } catch (error) {
-        console.error('Error processing batch:', error);
-        
-        // Add fallback results for failed batch
-        const fallbackResults = batch.map(track => ({
-          track_id: track.id,
-          features: generateFallbackFeatures(track),
-          error: 'Batch processing failed'
-        }));
-        
-        allResults.push(...fallbackResults);
-      }
-    }
-    
-    return allResults;
-  }
-  
-  // Safe individual track analysis with timeout and retry
-  async function analyzeTrackWithAuddioSafe(track, apiToken, retries = 2, timeout = 10000) {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const result = await Promise.race([
-          analyzeTrackWithAuddioCore(track, apiToken),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Request timeout')), timeout)
-          )
-        ]);
-        
-        if (result) {
-          return result;
-        }
-        
-      } catch (error) {
-        console.warn(`Attempt ${attempt + 1} failed for ${track.name}: ${error.message}`);
-        
-        if (attempt === retries) {
-          // Final attempt failed, return fallback
-          return {
-            track_id: track.id,
-            features: generateFallbackFeatures(track),
-            error: `All ${retries + 1} attempts failed: ${error.message}`
-          };
-        }
-        
-        // Wait before retry (exponential backoff)
-        const backoffDelay = Math.min(1000 * Math.pow(2, attempt), 5000);
-        await new Promise(resolve => setTimeout(resolve, backoffDelay));
-      }
-    }
-  }
-  
-  // Core Audd.io analysis function
-  async function analyzeTrackWithAuddioCore(track, apiToken) {
     try {
-      // Use Spotify URL instead of preview URL
-      const trackUrl = `https://open.spotify.com/track/${track.id}`;
-      
-      const params = new URLSearchParams({
-        url: trackUrl,
-        return: 'apple_music,spotify,mood,genre,tempo,lyrics',
-        api_token: apiToken
-      });
-  
-      const response = await fetch(`https://api.audd.io/?${params.toString()}`, {
-        method: 'GET',
+      const response = await fetch(`https://api.spotify.com/v1/tracks?ids=${idsParam}`, {
         headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'MusicRecommendationApp/1.0'
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
-  
+      
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`Spotify API error: ${response.status}`);
       }
-  
+      
       const data = await response.json();
-      
-      if (data.status === 'success' && data.result) {
-        return {
-          track_id: track.id,
-          features: {
-            tempo: data.result.tempo || null,
-            genre: data.result.genre || null,
-            mood: data.result.mood || null,
-            energy: data.result.energy || null,
-            danceability: data.result.danceability || null,
-            valence: data.result.valence || null,
-            acousticness: data.result.acousticness || null,
-            instrumentalness: data.result.instrumentalness || null,
-            liveness: data.result.liveness || null,
-            speechiness: data.result.speechiness || null
-          },
-          metadata: {
-            ...data.result,
-            analysis_source: 'audd.io',
-            analysis_timestamp: new Date().toISOString()
-          }
-        };
-      } else {
-        throw new Error(data.error || 'Analysis returned no results');
-      }
-      
+      allTracks.push(...data.tracks.filter(track => track !== null));
     } catch (error) {
-      throw new Error(`Audd.io API error: ${error.message}`);
+      console.error(`Error fetching batch ${i / batchSize + 1}:`, error);
     }
   }
   
-  // Alternative: Bulk analysis if Audd.io supports batch requests
-  export async function analyzeTracksBulkWithAudd(tracks) {
-    try {
-      console.log(`Attempting bulk analysis of ${tracks.length} tracks with Audd.io`);
-      
-      const auddApiToken = process.env.AUDDIO_API_KEY || 'test';
-      
-      // Check if bulk analysis is supported by trying to send multiple URLs
-      const trackUrls = tracks.slice(0, 10).map(track => 
-        `https://open.spotify.com/track/${track.id}`
-      );
-      
-      const bulkParams = new URLSearchParams({
-        urls: trackUrls.join(','), // Try comma-separated URLs
-        return: 'apple_music,spotify,mood,genre,tempo',
-        api_token: auddApiToken
-      });
-      
-      const response = await fetch(`https://api.audd.io/?${bulkParams.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'MusicRecommendationApp/1.0'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        // If bulk analysis worked, process the results
-        if (data.status === 'success' && Array.isArray(data.result)) {
-          console.log('Bulk analysis successful!');
-          return processBulkAuddResults(tracks, data.result);
-        }
-      }
-      
-      // If bulk analysis didn't work, fall back to parallel processing
-      console.log('Bulk analysis not supported, falling back to parallel processing');
-      return await analyzeTracksWithAuddParallel(tracks);
-      
-    } catch (error) {
-      console.error('Bulk analysis failed, falling back to parallel:', error);
-      return await analyzeTracksWithAuddParallel(tracks);
-    }
-  }
-  
-  // Process bulk analysis results
-  function processBulkAuddResults(tracks, results) {
-    return tracks.map((track, index) => {
-      const result = results[index];
-      
-      if (result && result.status === 'success' && result.result) {
-        return {
-          track_id: track.id,
-          features: {
-            tempo: result.result.tempo || null,
-            genre: result.result.genre || null,
-            mood: result.result.mood || null,
-            energy: result.result.energy || null,
-            danceability: result.result.danceability || null,
-            valence: result.result.valence || null,
-            acousticness: result.result.acousticness || null,
-            instrumentalness: result.result.instrumentalness || null,
-            liveness: result.result.liveness || null,
-            speechiness: result.result.speechiness || null
-          },
-          metadata: {
-            ...result.result,
-            analysis_source: 'audd.io_bulk',
-            analysis_timestamp: new Date().toISOString()
-          }
-        };
-      } else {
-        return {
-          track_id: track.id,
-          features: generateFallbackFeatures(track),
-          error: result?.error || 'Bulk analysis failed for this track'
-        };
-      }
+  return allTracks;
+}
+
+// Function to call FastAPI for single track
+async function fetchSingleTrackFeatures(title, artist) {
+  try {
+    const response = await fetch(`${FASTAPI_BASE_URL}/audio_feature/extract`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: title,
+        artist: artist
+      })
     });
+    
+    if (!response.ok) {
+      throw new Error(`FastAPI error: ${response.status} - ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching features for "${title}" by "${artist}":`, error);
+    return {
+      title,
+      artist,
+      error: error.message
+    };
+  }
+}
+
+// Function to call FastAPI for multiple tracks
+async function fetchMultipleTrackFeatures(tracks) {
+  try {
+    const response = await fetch(`${FASTAPI_BASE_URL}/audio_feature/extract_multiple`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tracks: tracks.map(track => ({
+          title: track.title,
+          artist: track.artist
+        }))
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`FastAPI error: ${response.status} - ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching multiple track features:', error);
+    throw error;
+  }
+}
+
+// Function to process tracks in batches of 5
+async function processTracksInBatches(tracksForAnalysis, batchSize = 5) {
+  const allResults = [];
+  const totalBatches = Math.ceil(tracksForAnalysis.length / batchSize);
+  
+  console.log(`Processing ${tracksForAnalysis.length} tracks in ${totalBatches} batches of ${batchSize}`);
+  
+  for (let i = 0; i < tracksForAnalysis.length; i += batchSize) {
+    const batch = tracksForAnalysis.slice(i, i + batchSize);
+    const batchNumber = Math.floor(i / batchSize) + 1;
+    
+    console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} tracks)`);
+    
+    try {
+      const batchResult = await fetchMultipleTrackFeatures(batch);
+      allResults.push(...batchResult.results);
+      
+      console.log(`Batch ${batchNumber} completed: ${batchResult.successful} successful, ${batchResult.failed} failed`);
+      
+      // Add delay between batches to avoid overwhelming the APIs
+      if (i + batchSize < tracksForAnalysis.length) {
+        console.log('Waiting 2 seconds before next batch...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } catch (error) {
+      console.error(`Error processing batch ${batchNumber}:`, error);
+      
+      // Fallback to processing individual tracks in this batch
+      console.log('Falling back to individual track processing for this batch...');
+      for (const track of batch) {
+        const singleResult = await fetchSingleTrackFeatures(track.title, track.artist);
+        allResults.push(singleResult);
+      }
+    }
   }
   
-  // Enhanced fallback feature generation (keeping your existing logic but improved)
-  function generateFallbackFeatures(track) {
-    try {
-      const popularity = track.popularity || 50;
-      const genres = track.artists?.[0]?.genres || [];
-      const trackName = track.name.toLowerCase();
-      const artistName = track.artists?.[0]?.name.toLowerCase() || '';
+  return allResults;
+}
+
+// Main export function
+export async function enhancedFeatureAnalysis(tracks, token) {
+  try {
+    console.log('Performing enhanced feature analysis...');
+    
+    if (!token) {
+      throw new Error('Spotify access token is required for track analysis');
+    }
+    
+    // Extract track IDs
+    const trackIds = tracks.map(track => extractTrackId(track)).filter(id => id !== null);
+    console.log(`Extracted ${trackIds.length} valid track IDs`);
+    
+    if (trackIds.length === 0) {
+      throw new Error('No valid track IDs found');
+    }
+    
+    // Fetch full track data from Spotify API
+    const fullTrackData = await fetchSpotifyTracksBatch(trackIds, token);
+    console.log(`Fetched ${fullTrackData.length} tracks from Spotify API`);
+    
+    // Prepare tracks for FastAPI analysis
+    const tracksForAnalysis = fullTrackData.map(track => ({
+      title: track.name,
+      artist: track.artists[0]?.name || 'Unknown Artist',
+      spotify_id: track.id,
+      spotify_data: {
+        duration_ms: track.duration_ms,
+        popularity: track.popularity,
+        explicit: track.explicit,
+        preview_url: track.preview_url,
+        external_urls: track.external_urls
+      }
+    }));
+    
+    console.log(`Prepared ${tracksForAnalysis.length} tracks for enhanced analysis`);
+    
+    // Process tracks through FastAPI in batches of 5
+    const enhancedResults = await processTracksInBatches(tracksForAnalysis, 5);
+    
+    // Combine Spotify data with enhanced features
+    const combinedResults = enhancedResults.map((enhancedTrack, index) => {
+      const originalTrack = tracksForAnalysis[index] || {};
       
-      // Initialize base features
-      let energy = 0.5;
-      let valence = 0.5;
-      let danceability = 0.5;
-      let tempo = 120;
-      let acousticness = 0.3;
-      
-      // Popularity-based adjustments
-      energy = Math.min(0.9, 0.3 + (popularity / 100) * 0.6);
-      danceability = Math.min(0.9, 0.2 + (popularity / 100) * 0.7);
-      
-      // Keyword analysis
-      const moodKeywords = {
-        happy: ['happy', 'joy', 'love', 'good', 'great', 'amazing', 'wonderful', 'sunshine', 'bright', 'dance', 'party', 'fun'],
-        sad: ['sad', 'cry', 'tears', 'hurt', 'pain', 'broken', 'lonely', 'dark', 'empty', 'sorry'],
-        energetic: ['power', 'strong', 'energy', 'fire', 'rock', 'wild', 'crazy', 'fast', 'run', 'jump', 'electric'],
-        calm: ['calm', 'peace', 'quiet', 'soft', 'gentle', 'slow', 'meditation', 'relax']
-      };
-      
-      // Apply keyword-based adjustments
-      Object.entries(moodKeywords).forEach(([mood, keywords]) => {
-        const matchCount = keywords.filter(word => 
-          trackName.includes(word) || artistName.includes(word)
-        ).length;
+      return {
+        // Basic track info
+        title: enhancedTrack.title,
+        artist: enhancedTrack.artist,
+        spotify_id: originalTrack.spotify_id,
         
-        if (matchCount > 0) {
-          const intensity = Math.min(matchCount * 0.2, 0.4);
-          
-          switch (mood) {
-            case 'happy':
-              valence += intensity;
-              energy += intensity * 0.5;
-              danceability += intensity * 0.7;
-              break;
-            case 'sad':
-              valence -= intensity;
-              energy -= intensity * 0.7;
-              tempo -= intensity * 40;
-              acousticness += intensity * 0.5;
-              break;
-            case 'energetic':
-              energy += intensity;
-              tempo += intensity * 50;
-              danceability += intensity * 0.6;
-              break;
-            case 'calm':
-              energy -= intensity * 0.6;
-              valence = 0.5; // Keep neutral
-              tempo -= intensity * 30;
-              acousticness += intensity * 0.4;
-              break;
-          }
+        // Spotify data
+        spotify: originalTrack.spotify_data,
+        
+        // Enhanced features from TuneBat/OpenAI
+        enhanced_features: {
+          bpm: enhancedTrack.bpm,
+          energy: enhancedTrack.energy,
+          danceability: enhancedTrack.danceability,
+          happiness: enhancedTrack.happiness,
+          acousticness: enhancedTrack.acousticness,
+          instrumentalness: enhancedTrack.instrumentalness,
+          liveness: enhancedTrack.liveness,
+          speechiness: enhancedTrack.speechiness,
+          loudness: enhancedTrack.loudness,
+          key: enhancedTrack.key,
+          camelot: enhancedTrack.camelot,
+          duration: enhancedTrack.duration,
+          release_date: enhancedTrack.release_date,
+          album: enhancedTrack.album,
+          label: enhancedTrack.label,
+          explicit: enhancedTrack.explicit
+        },
+        
+        // Processing status
+        processing_status: {
+          success: !enhancedTrack.error,
+          error: enhancedTrack.error || null,
+          enhanced_features_available: !enhancedTrack.error
         }
-      });
-      
-      // Genre-based adjustments
-      const genreAdjustments = {
-        'dance': { energy: 0.3, danceability: 0.4, valence: 0.2, tempo: 30 },
-        'pop': { energy: 0.2, danceability: 0.3, valence: 0.2, tempo: 10 },
-        'rock': { energy: 0.4, tempo: 25, acousticness: -0.3 },
-        'metal': { energy: 0.5, tempo: 40, acousticness: -0.4, valence: -0.2 },
-        'classical': { energy: -0.2, acousticness: 0.4, tempo: -20 },
-        'jazz': { acousticness: 0.3, energy: -0.1 },
-        'blues': { valence: -0.2, acousticness: 0.2 },
-        'electronic': { energy: 0.3, danceability: 0.4, acousticness: -0.5 },
-        'ambient': { energy: -0.4, acousticness: 0.5, tempo: -30 },
-        'hip-hop': { speechiness: 0.4, energy: 0.2, danceability: 0.3 },
-        'country': { acousticness: 0.3, valence: 0.1 }
       };
+    });
+    
+    // Calculate summary statistics
+    const successful = combinedResults.filter(track => track.processing_status.success).length;
+    const failed = combinedResults.length - successful;
+    const successRate = (successful / combinedResults.length * 100).toFixed(1);
+    
+    console.log(`\n🎯 Enhanced Feature Analysis Complete:`);
+    console.log(`Total tracks processed: ${combinedResults.length}`);
+    console.log(`Successful: ${successful} (${successRate}%)`);
+    console.log(`Failed: ${failed}`);
+    
+    // Return comprehensive results
+    return {
+      summary: {
+        total_tracks: combinedResults.length,
+        successful_extractions: successful,
+        failed_extractions: failed,
+        success_rate: parseFloat(successRate),
+        processing_time: new Date().toISOString()
+      },
+      tracks: combinedResults,
       
-      genres.forEach(genre => {
-        const lowerGenre = genre.toLowerCase();
-        Object.entries(genreAdjustments).forEach(([genreKey, adjustments]) => {
-          if (lowerGenre.includes(genreKey)) {
-            Object.entries(adjustments).forEach(([feature, adjustment]) => {
-              switch (feature) {
-                case 'energy':
-                  energy += adjustment;
-                  break;
-                case 'valence':
-                  valence += adjustment;
-                  break;
-                case 'danceability':
-                  danceability += adjustment;
-                  break;
-                case 'tempo':
-                  tempo += adjustment;
-                  break;
-                case 'acousticness':
-                  acousticness += adjustment;
-                  break;
-              }
-            });
+      // Helper methods for data analysis
+      getSuccessfulTracks: () => combinedResults.filter(track => track.processing_status.success),
+      getFailedTracks: () => combinedResults.filter(track => !track.processing_status.success),
+      getTracksByBPMRange: (min, max) => combinedResults.filter(track => {
+        const bpm = track.enhanced_features.bpm;
+        return bpm && bpm >= min && bpm <= max;
+      }),
+      getAverageFeatures: () => {
+        const successfulTracks = combinedResults.filter(track => track.processing_status.success);
+        if (successfulTracks.length === 0) return null;
+        
+        const features = ['bpm', 'energy', 'danceability', 'happiness', 'acousticness', 'instrumentalness', 'liveness', 'speechiness'];
+        const averages = {};
+        
+        features.forEach(feature => {
+          const values = successfulTracks
+            .map(track => track.enhanced_features[feature])
+            .filter(val => val !== null && val !== undefined);
+          
+          if (values.length > 0) {
+            averages[feature] = values.reduce((sum, val) => sum + val, 0) / values.length;
           }
         });
-      });
-      
-      // Clamp all values to valid ranges
-      energy = Math.max(0.1, Math.min(0.9, energy));
-      valence = Math.max(0.1, Math.min(0.9, valence));
-      danceability = Math.max(0.1, Math.min(0.9, danceability));
-      acousticness = Math.max(0.0, Math.min(1.0, acousticness));
-      tempo = Math.max(60, Math.min(200, tempo));
-      
-      // Determine mood based on valence and energy
-      let mood = 'neutral';
-      if (valence > 0.7 && energy > 0.6) mood = 'happy';
-      else if (valence > 0.6) mood = 'upbeat';
-      else if (valence < 0.4 && energy < 0.5) mood = 'sad';
-      else if (energy > 0.7) mood = 'energetic';
-      else if (energy < 0.4) mood = 'calm';
-      
-      return {
-        tempo: Math.round(tempo),
-        energy: Math.round(energy * 100) / 100,
-        valence: Math.round(valence * 100) / 100,
-        danceability: Math.round(danceability * 100) / 100,
-        acousticness: Math.round(acousticness * 100) / 100,
-        instrumentalness: trackName.includes('instrumental') ? 0.8 : 0.1,
-        liveness: 0.2,
-        speechiness: (trackName.includes('rap') || trackName.includes('spoken') || genres.some(g => g.includes('hip-hop'))) ? 0.7 : 0.1,
-        genre: genres.length > 0 ? genres[0] : 'pop',
-        mood: mood
-      };
-      
-    } catch (error) {
-      console.error('Error generating fallback features:', error);
-      return {
-        tempo: 120,
-        energy: 0.5,
-        valence: 0.5,
-        danceability: 0.5,
-        acousticness: 0.3,
-        instrumentalness: 0.1,
-        liveness: 0.2,
-        speechiness: 0.1,
-        genre: 'pop',
-        mood: 'neutral'
-      };
-    }
-  }
-  
-  // Updated main function to use parallel processing
-  export async function enhancedFeatureAnalysis(tracks, token) {
-    try {
-      console.log('Performing enhanced feature analysis with parallel Audd.io processing...');
-      
-      // First try bulk analysis, fall back to parallel if not supported
-      const auddResults = await analyzeTracksBulkWithAudd(tracks);
-      
-      // Combine results with track data
-      const combinedFeatures = tracks.map((track, index) => {
-        const auddResult = auddResults.find(r => r.track_id === track.id);
         
-        return {
-          ...track,
-          audioFeatures: auddResult?.features || generateFallbackFeatures(track),
-          auddMetadata: auddResult?.metadata || null,
-          analysisSource: auddResult?.features && !auddResult?.error ? 'audd.io' : 'fallback'
-        };
-      });
-  
-      const auddCount = combinedFeatures.filter(t => t.analysisSource === 'audd.io').length;
-      const fallbackCount = combinedFeatures.filter(t => t.analysisSource === 'fallback').length;
-      
-      console.log(`Enhanced parallel analysis complete: ${auddCount} from Audd.io, ${fallbackCount} from fallback`);
-      return combinedFeatures;
-      
-    } catch (error) {
-      console.error('Error in enhanced feature analysis:', error);
-      return tracks.map(track => ({
-        ...track,
-        audioFeatures: generateFallbackFeatures(track),
-        auddMetadata: null,
-        analysisSource: 'fallback'
-      }));
-    }
+        return averages;
+      }
+    };
+    
+  } catch (error) {
+    console.error('Enhanced feature analysis failed:', error);
+    throw new Error(`Enhanced feature analysis failed: ${error.message}`);
   }
+}
+
+// Utility function to check FastAPI health
+export async function checkFastAPIHealth() {
+  try {
+    const response = await fetch(`${FASTAPI_BASE_URL}/audio_feature/health`);
+    if (!response.ok) {
+      throw new Error(`Health check failed: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('FastAPI health check failed:', error);
+    return {
+      status: 'unhealthy',
+      error: error.message
+    };
+  }
+}
+
+// Utility function to analyze a single track
+export async function analyzeSingleTrack(title, artist) {
+  try {
+    console.log(`Analyzing single track: "${title}" by "${artist}"`);
+    
+    const result = await fetchSingleTrackFeatures(title, artist);
+    
+    return {
+      success: !result.error,
+      track: result,
+      error: result.error || null
+    };
+  } catch (error) {
+    console.error('Single track analysis failed:', error);
+    return {
+      success: false,
+      track: null,
+      error: error.message
+    };
+  }
+}
+
+// Export configuration for easy updates
+export const config = {
+  FASTAPI_BASE_URL,
+  MAX_BATCH_SIZE: 5,
+  BATCH_DELAY_MS: 2000,
+  SPOTIFY_BATCH_SIZE: 50
+};
+
+// Update configuration
+export function updateConfig(newConfig) {
+  Object.assign(config, newConfig);
+}

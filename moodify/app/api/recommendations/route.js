@@ -12,7 +12,7 @@ import { createSpotifyPlaylist } from './spotifyHelpers.js';
 import {
   validateRequestParams,
   generatePlaylistStory,
-  createAudioFeatures
+  createAudioFeaturesFromTracks
 } from './utils.js';
 
 // Import progress tracker
@@ -51,7 +51,6 @@ export async function POST(request) {
     console.log('ProgressTracker created successfully');
 
     await new Promise(resolve => setTimeout(resolve, 100));
-
 
     // Add this function to get userId from token
     async function getUserIdFromToken(token) {
@@ -106,7 +105,7 @@ export async function POST(request) {
 
     // WORKFLOW BRANCHES
     if (recommendationType === "mood") {
-      const result = await processMoodRecommendationsOptimized(prompt, token, outputFormat, qualityCheck, userId, progressTracker);
+      const result = await processMoodRecommendationsSimplified(prompt, token, outputFormat, qualityCheck, userId, progressTracker);
       recommendations = result.recommendations;
       mood = result.mood;
       processingMetadata = result.metadata;
@@ -127,7 +126,7 @@ export async function POST(request) {
 
     await progressTracker.updateStep('story_generation', 'active', 'Generating playlist story...');
 
-    // Generate story and audio features
+    // Generate story and calculate audio features from enhanced tracks
     const story = await generatePlaylistStory(
       recommendations,
       prompt,
@@ -137,7 +136,8 @@ export async function POST(request) {
       outputFormat
     );
 
-    const audioFeatures = createAudioFeatures(mood);
+    // Create audio features based on the actual tracks returned from FastAPI
+    const audioFeatures = createAudioFeaturesFromTracks(recommendations, mood);
 
     await progressTracker.completeStep('story_generation', 'Story generated');
 
@@ -175,20 +175,20 @@ export async function POST(request) {
   }
 }
 
-// OPTIMIZED MOOD RECOMMENDATION WORKFLOW WITH PROGRESS TRACKING
-async function processMoodRecommendationsOptimized(prompt, token, outputFormat, qualityCheck, userId, progressTracker) {
+// SIMPLIFIED MOOD RECOMMENDATION WORKFLOW
+async function processMoodRecommendationsSimplified(prompt, token, outputFormat, qualityCheck, userId, progressTracker) {
   const metadata = {
-    workflow: "mood_optimized",
+    workflow: "mood_simplified_with_fastapi",
     steps: [],
     timing: { start: Date.now() }
   };
 
   try {
-    console.log("=== STARTING OPTIMIZED MOOD RECOMMENDATION WORKFLOW ===");
+    console.log("=== STARTING SIMPLIFIED MOOD RECOMMENDATION WORKFLOW ===");
 
-    // Step 1: Analyze user's mood with enhanced prompting
+    // Step 1: Analyze user's mood
     await progressTracker.updateStep('mood_analysis', 'active', 'Analyzing your mood...');
-    console.log("Step 1: Enhanced mood analysis...");
+    console.log("Step 1: Mood analysis...");
     const stepStart = Date.now();
     const mood = await analyzeMood(prompt);
     const moodDuration = Date.now() - stepStart;
@@ -203,11 +203,11 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     await progressTracker.completeStep('mood_analysis', mood, moodDuration);
     console.log(`Detected mood: ${mood}`);
 
-    // Step 2: Fetch user's library with smart sampling
+    // Step 2: Fetch user's library
     await progressTracker.updateStep('library_fetch', 'active', 'Scanning your music library...');
-    console.log("Step 2: Smart library fetching...");
+    console.log("Step 2: Library fetching...");
     const libStart = Date.now();
-    const libraryTracks = await fetchLibraryEnhanced(token, mood);
+    const libraryTracks = await fetchLibrary(token);
     const libDuration = Date.now() - libStart;
     
     metadata.steps.push({
@@ -221,12 +221,12 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     console.log(`Retrieved ${libraryTracks.length} tracks from library`);
 
     if (libraryTracks.length === 0) {
-      console.warn("No tracks found in user's library, using enhanced Spotify recommendations");
+      console.warn("No tracks found in user's library, using Spotify recommendations");
       await progressTracker.updateStep('fallback_recommendations', 'active', 'Generating Spotify recommendations...');
       
       const fallbackStart = Date.now();
       const targetCount = outputFormat === 'track' ? 1 : 10;
-      const fallbackTracks = await generateEnhancedSpotifyRecommendations(token, mood, prompt, targetCount);
+      const fallbackTracks = await generateFallbackRecommendations(token, prompt, mood, [], targetCount);
       const fallbackDuration = Date.now() - fallbackStart;
       
       metadata.steps.push({
@@ -245,12 +245,12 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
       };
     }
 
-    // Step 3: Enhanced AI analysis with semantic understanding
+    // Step 3: AI analysis for initial selection
     await progressTracker.updateStep('ai_track_analysis', 'active', 'AI selecting best matches...');
-    console.log("Step 3: Enhanced AI track analysis...");
+    console.log("Step 3: AI track analysis...");
     const aiStart = Date.now();
-    const targetCount = outputFormat === 'track' ? 5 : 20;
-    const aiSelectedTracks = await analyzeTracksWithEnhancedAI(libraryTracks, prompt, mood, targetCount, userId);
+    const targetCount = outputFormat === 'track' ? 10 : 30; // Get more candidates for FastAPI analysis
+    const aiSelectedTracks = await analyzeTracksWithAI(libraryTracks, prompt, mood, userId, targetCount);
     const aiDuration = Date.now() - aiStart;
     
     metadata.steps.push({
@@ -264,7 +264,7 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     console.log(`AI selected ${aiSelectedTracks.length} tracks`);
 
     if (aiSelectedTracks.length === 0) {
-      console.warn("AI couldn't find matching tracks, using enhanced fallback");
+      console.warn("AI couldn't find matching tracks, using fallback");
       await progressTracker.updateStep('ai_fallback', 'active', 'Using fallback recommendations...');
       
       const fallbackCount = outputFormat === 'track' ? 1 : 10;
@@ -279,73 +279,76 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
       };
     }
 
-    // Step 4: PARALLEL Audd.io analysis with simultaneous processing
-    await progressTracker.updateStep('parallel_audd_analysis', 'active', 'Analyzing audio features...');
-    console.log("Step 4: PARALLEL Audd.io audio feature analysis...");
+    // Step 4: FastAPI Enhanced Feature Analysis 
+    await progressTracker.updateStep('fastapi_analysis', 'active', 'Analyzing audio features...');
+    console.log("Step 4: FastAPI enhanced feature analysis...");
     const featureStart = Date.now();
 
-    const tracksWithFeatures = await enhancedFeatureAnalysisParallel(aiSelectedTracks, token);
+    const enhancedResult = await enhancedFeatureAnalysis(aiSelectedTracks, token);
     const featureDuration = Date.now() - featureStart;
 
     metadata.steps.push({
       step: 4,
-      name: "parallel_audd_analysis",
-      result: `${tracksWithFeatures.length} tracks enhanced (parallel processing)`,
+      name: "fastapi_enhanced_analysis",
+      result: `${enhancedResult.tracks?.length || 0} tracks enhanced`,
       duration: featureDuration,
-      parallelProcessing: true
+      successful: enhancedResult.summary?.successful_extractions || 0,
+      failed: enhancedResult.summary?.failed_extractions || 0
     });
     
-    await progressTracker.completeStep('parallel_audd_analysis', `${tracksWithFeatures.length} tracks enhanced`, featureDuration);
-    console.log(`Enhanced ${tracksWithFeatures.length} tracks with parallel Audd.io analysis`);
+    await progressTracker.completeStep('fastapi_analysis', 
+      `${enhancedResult.tracks?.length || 0} tracks enhanced (${enhancedResult.summary?.successful_extractions || 0} with features)`, 
+      featureDuration);
+    
+    console.log(`FastAPI enhanced ${enhancedResult.tracks?.length || 0} tracks`);
 
-    // Step 5: Semantic evaluation and alignment
-    await progressTracker.updateStep('semantic_evaluation', 'active', 'Evaluating track quality...');
-    console.log("Step 5: Semantic track alignment evaluation...");
+    // Convert enhanced result back to track format for AI analysis
+    const tracksWithEnhancedFeatures = mergeEnhancedFeaturesWithTracks(aiSelectedTracks, enhancedResult.tracks || []);
+
+    // Step 5: Enhanced Track Evaluation with Audio Features
+    await progressTracker.updateStep('track_evaluation', 'active', 'Evaluating tracks with enhanced features...');
+    console.log("Step 5: Enhanced track evaluation with FastAPI features...");
     const evalStart = Date.now();
-    const evaluation = await evaluateTrackAlignmentEnhanced(tracksWithFeatures, prompt, mood);
+    
+    const evaluation = await evaluateTrackAlignment(tracksWithEnhancedFeatures, prompt, mood);
     const evalDuration = Date.now() - evalStart;
     
     metadata.steps.push({
       step: 5,
-      name: "semantic_evaluation",
-      result: `${evaluation.highQualityTracks.length} high-quality tracks`,
+      name: "enhanced_track_evaluation",
+      result: `${evaluation.highQualityTracks.length} high-quality tracks found`,
       duration: evalDuration
     });
     
-    await progressTracker.completeStep('semantic_evaluation', `${evaluation.highQualityTracks.length} high-quality tracks`, evalDuration);
-    console.log(`Found ${evaluation.highQualityTracks.length} high-quality tracks`);
+    await progressTracker.completeStep('track_evaluation', `${evaluation.highQualityTracks.length} high-quality tracks`, evalDuration);
+    console.log(`Track evaluation found ${evaluation.highQualityTracks.length} high-quality tracks`);
 
+    // Step 6: Final ranking and selection
+    await progressTracker.updateStep('final_selection', 'active', 'Making final selections...');
+    console.log("Step 6: Final ranking and selection...");
+    
     let finalTracks = evaluation.highQualityTracks;
+    
+    // Apply final ranking based on multiple factors
+    finalTracks = rankTracksWithEnhancedFeatures(finalTracks, mood, prompt, outputFormat);
+    
+    await progressTracker.completeStep('final_selection', `${finalTracks.length} final tracks selected`);
 
-    // Step 6: Quality assurance and fallback integration
+    // Ensure we have minimum required tracks
     const minRequired = outputFormat === 'track' ? 1 : 5;
     if (finalTracks.length < minRequired) {
-      await progressTracker.updateStep('quality_assurance', 'active', `Adding ${minRequired - finalTracks.length} more tracks...`);
-      console.log(`Step 6: Fallback integration (have ${finalTracks.length}, need ${minRequired})`);
-
-      const fallbackTracks = await generateFallbackRecommendations(
+      console.log(`Adding fallback tracks to reach minimum of ${minRequired}`);
+      const additionalTracks = await generateFallbackRecommendations(
         token,
         prompt,
         mood,
         finalTracks,
         minRequired - finalTracks.length
       );
-
-      finalTracks = [...finalTracks, ...fallbackTracks];
-      await progressTracker.completeStep('quality_assurance', `Added ${fallbackTracks.length} fallback tracks`);
-      console.log(`Added ${fallbackTracks.length} fallback tracks, total: ${finalTracks.length}`);
+      finalTracks.push(...additionalTracks);
     }
 
-    // Ensure we have at least something to return
-    if (finalTracks.length === 0) {
-      console.warn("Final fallback activation");
-      const ultimateFallback = outputFormat === 'track' ? 1 : 10;
-      finalTracks = await generateFallbackRecommendations(token, prompt, mood, [], ultimateFallback);
-    }
-
-    // Step 7: Format output based on type
-    await progressTracker.updateStep('finalizing', 'active', 'Finalizing recommendations...');
-    
+    // Format output based on type
     let result;
     if (outputFormat === 'track') {
       result = finalTracks.length > 0 ? [finalTracks[0]] : [];
@@ -355,9 +358,8 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
 
     metadata.timing.total = Date.now() - metadata.timing.start;
 
-    await progressTracker.completeStep('finalizing', `${result.length} recommendations ready`);
-
-    console.log(`=== WORKFLOW COMPLETED IN ${metadata.timing.total}ms WITH PARALLEL PROCESSING ===`);
+    console.log(`=== ENHANCED WORKFLOW COMPLETED IN ${metadata.timing.total}ms ===`);
+    console.log(`Final result: ${result.length} tracks with enhanced features`);
 
     return {
       recommendations: result,
@@ -366,7 +368,7 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     };
 
   } catch (error) {
-    console.error('Error in optimized mood recommendation workflow:', error);
+    console.error('Error in simplified mood recommendation workflow:', error);
     await progressTracker.setError('workflow_error', error.message);
     metadata.error = error.message;
 
@@ -387,8 +389,151 @@ async function processMoodRecommendationsOptimized(prompt, token, outputFormat, 
     }
   }
 }
-// ENHANCED CLASSIC RECOMMENDATION WORKFLOW WITH DETAILED PROGRESS TRACKING
-// ENHANCED CLASSIC RECOMMENDATION WORKFLOW USING REAL API CALLS
+
+// Function to merge enhanced features back with original tracks
+function mergeEnhancedFeaturesWithTracks(originalTracks, enhancedTracks) {
+  const enhancedMap = new Map();
+  
+  // Create a map of enhanced tracks by title and artist for matching
+  enhancedTracks.forEach(enhanced => {
+    const key = `${enhanced.title?.toLowerCase()}-${enhanced.artist?.toLowerCase()}`;
+    enhancedMap.set(key, enhanced);
+  });
+  
+  return originalTracks.map(track => {
+    const key = `${track.name?.toLowerCase()}-${track.artists?.[0]?.name?.toLowerCase()}`;
+    const enhanced = enhancedMap.get(key);
+    
+    if (enhanced) {
+      return {
+        ...track,
+        enhanced_features: enhanced.enhanced_features,
+        processing_status: enhanced.processing_status,
+        fastapi_enhanced: true,
+        enhancement_error: enhanced.error || null
+      };
+    }
+    
+    return {
+      ...track,
+      enhanced_features: null,
+      processing_status: { success: false, enhanced_features_available: false },
+      fastapi_enhanced: false,
+      enhancement_error: 'No enhanced features available'
+    };
+  });
+}
+
+// Final ranking function that considers enhanced features and evaluation scores
+function rankTracksWithEnhancedFeatures(tracks, mood, prompt, outputFormat) {
+  if (!tracks || tracks.length === 0) {
+    return [];
+  }
+
+  console.log(`Ranking ${tracks.length} tracks with enhanced features and evaluation scores`);
+
+  // Apply final scoring that considers everything
+  const finalScoredTracks = tracks.map(track => {
+    let finalScore = 0;
+    
+    // Base score from user preferences
+    if (track.userPreferenceScore) {
+      finalScore += track.userPreferenceScore * 3;
+    }
+    
+    // Track evaluation alignment score (from evaluateTrackAlignment)
+    if (track.alignmentScore) {
+      finalScore += track.alignmentScore * 5; // High weight for mood alignment
+    }
+    
+    // Bonus for successfully enhanced tracks with FastAPI features
+    if (track.enhanced_features && track.processing_status?.enhanced_features_available) {
+      finalScore += 15;
+      
+      // Additional scoring based on enhanced features matching mood
+      const features = track.enhanced_features;
+      
+      switch (mood) {
+        case 'happy':
+          if (features.happiness) finalScore += (features.happiness / 100) * 10;
+          if (features.energy) finalScore += (features.energy / 100) * 5;
+          if (features.danceability) finalScore += (features.danceability / 100) * 3;
+          break;
+        case 'sad':
+          if (features.happiness) finalScore += ((100 - features.happiness) / 100) * 10;
+          if (features.energy) finalScore += ((100 - features.energy) / 100) * 5;
+          if (features.acousticness) finalScore += (features.acousticness / 100) * 3;
+          break;
+        case 'energetic':
+          if (features.energy) finalScore += (features.energy / 100) * 10;
+          if (features.danceability) finalScore += (features.danceability / 100) * 5;
+          if (features.bpm && features.bpm > 120) finalScore += 5;
+          break;
+        case 'calm':
+          if (features.energy) finalScore += ((100 - features.energy) / 100) * 8;
+          if (features.acousticness) finalScore += (features.acousticness / 100) * 5;
+          if (features.instrumentalness) finalScore += (features.instrumentalness / 100) * 3;
+          break;
+        case 'romantic':
+          // Target moderate happiness (around 60-80)
+          if (features.happiness) {
+            const happinessTarget = Math.max(0, 80 - Math.abs(features.happiness - 70));
+            finalScore += (happinessTarget / 100) * 8;
+          }
+          if (features.acousticness) finalScore += (features.acousticness / 100) * 5;
+          if (features.energy) {
+            const energyTarget = Math.max(0, 70 - Math.abs(features.energy - 50));
+            finalScore += (energyTarget / 100) * 3;
+          }
+          break;
+        default: // balanced
+          finalScore += 5; // Neutral bonus
+      }
+    }
+    
+    // Spotify popularity boost
+    if (track.popularity) {
+      finalScore += track.popularity * 0.15;
+    }
+    
+    // Recent release bonus (if we have release date)
+    if (track.enhanced_features?.release_date) {
+      try {
+        const releaseYear = new Date(track.enhanced_features.release_date).getFullYear();
+        const currentYear = new Date().getFullYear();
+        if (currentYear - releaseYear < 5) {
+          finalScore += 3; // Bonus for recent releases
+        }
+      } catch (e) {
+        // Ignore date parsing errors
+      }
+    }
+    
+    return {
+      ...track,
+      finalRankingScore: finalScore
+    };
+  });
+
+  // Sort by final score
+  finalScoredTracks.sort((a, b) => b.finalRankingScore - a.finalRankingScore);
+  
+  // Return appropriate number based on output format
+  const maxResults = outputFormat === 'track' ? 1 : 15;
+  const result = finalScoredTracks.slice(0, maxResults);
+  
+  console.log(`Final ranking complete: returning top ${result.length} tracks`);
+  
+  // Log top track details for debugging
+  if (result.length > 0) {
+    const topTrack = result[0];
+    console.log(`Top track: "${topTrack.name}" by ${topTrack.artists?.[0]?.name} (Score: ${topTrack.finalRankingScore.toFixed(1)}, Enhanced: ${!!topTrack.enhanced_features})`);
+  }
+  
+  return result;
+}
+
+// ENHANCED CLASSIC RECOMMENDATION WORKFLOW (unchanged)
 async function processClassicRecommendations(prompt, token, outputFormat, progressTracker) {
   const metadata = {
     workflow: "classic_enhanced_real",
@@ -400,8 +545,6 @@ async function processClassicRecommendations(prompt, token, outputFormat, progre
     console.log("=== STARTING REAL CLASSIC RECOMMENDATION WORKFLOW ===");
     console.log(`Prompt: "${prompt}", Format: ${outputFormat}`);
 
-    // Use the REAL generateClassicRecommendations function with progress tracking
-    // This function already has all the steps and real API calls built-in
     const classicStart = Date.now();
     const classicTracks = await generateClassicRecommendations(prompt, token, progressTracker.requestId);
     const classicDuration = Date.now() - classicStart;
@@ -415,21 +558,17 @@ async function processClassicRecommendations(prompt, token, outputFormat, progre
     
     console.log(`Real classic recommendations completed: ${classicTracks.length} tracks found`);
 
-    // Validate we have results
     if (classicTracks.length === 0) {
       await progressTracker.setError('classic_generation', 'Could not find classic songs matching the prompt');
       throw new Error("Could not find classic songs matching the prompt");
     }
 
-    // Format output based on type and user requirements
     let result;
     const userRequestedCount = extractCountFromPrompt(prompt);
 
     if (outputFormat === 'track') {
-      // Return single best classic track
       result = classicTracks.length > 0 ? [classicTracks[0]] : [];
     } else {
-      // Return classic playlist with smart count determination
       const playlistSize = userRequestedCount || Math.min(classicTracks.length, 20);
       result = classicTracks.slice(0, playlistSize);
     }
@@ -444,307 +583,18 @@ async function processClassicRecommendations(prompt, token, outputFormat, progre
 
   } catch (error) {
     console.error('Error in real classic recommendation workflow:', error);
-    // Error handling is already done inside generateClassicRecommendations
     metadata.error = error.message;
     metadata.timing.total = Date.now() - metadata.timing.start;
     throw error;
   }
 }
-// Keep all the existing helper functions unchanged
-// (fetchLibraryEnhanced, smartSampleLibrary, analyzeTracksWithEnhancedAI, etc.)
-// Just add the same functions from the original code here...
 
-// Smart library fetching with mood-based sampling
-async function fetchLibraryEnhanced(token, mood) {
-  try {
-    const allTracks = await fetchLibrary(token);
-
-    if (allTracks.length <= 100) {
-      return allTracks; // Return all if small library
-    }
-
-    // Smart sampling based on mood and audio features
-    const sampledTracks = await smartSampleLibrary(allTracks, mood, 200);
-    return sampledTracks;
-
-  } catch (error) {
-    console.error("Enhanced library fetch failed:", error);
-    return await fetchLibrary(token);
-  }
-}
-
-// Smart library sampling based on audio features
-async function smartSampleLibrary(tracks, mood, targetCount) {
-  try {
-    // Define mood preferences for audio features
-    const moodPreferences = {
-      happy: { valence: [0.6, 1.0], energy: [0.5, 1.0] },
-      sad: { valence: [0.0, 0.4], energy: [0.0, 0.5] },
-      energetic: { energy: [0.7, 1.0], danceability: [0.6, 1.0] },
-      calm: { valence: [0.3, 0.7], energy: [0.0, 0.4] },
-      romantic: { valence: [0.4, 0.8], acousticness: [0.3, 1.0] },
-      angry: { energy: [0.7, 1.0], valence: [0.0, 0.3] },
-      balanced: { valence: [0.2, 0.8], energy: [0.2, 0.8] }
-    };
-
-    const preferences = moodPreferences[mood] || moodPreferences.balanced;
-
-    // Score tracks based on mood preferences
-    const scoredTracks = tracks.map(track => {
-      let score = 0;
-      let factors = 0;
-
-      Object.entries(preferences).forEach(([feature, [min, max]]) => {
-        if (track.audio_features && track.audio_features[feature] !== undefined) {
-          const value = track.audio_features[feature];
-          if (value >= min && value <= max) {
-            score += 1;
-          }
-          factors += 1;
-        }
-      });
-
-      // Normalize score
-      const normalizedScore = factors > 0 ? score / factors : 0.5;
-
-      return {
-        ...track,
-        mood_score: normalizedScore
-      };
-    });
-
-    // Sort by mood score and add some randomness
-    scoredTracks.sort((a, b) => {
-      const scoreDiff = b.mood_score - a.mood_score;
-      const randomFactor = (Math.random() - 0.5) * 0.1; // Small random factor
-      return scoreDiff + randomFactor;
-    });
-
-    return scoredTracks.slice(0, targetCount);
-
-  } catch (error) {
-    console.error("Smart sampling failed:", error);
-    // Fallback to random sampling
-    const shuffled = [...tracks].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, targetCount);
-  }
-}
-
-// Enhanced AI track analysis with semantic understanding
-async function analyzeTracksWithEnhancedAI(tracks, prompt, mood, targetCount, userId) {
-  try {
-    return await analyzeTracksWithAI(tracks, prompt, mood, userId, targetCount, {
-      enhanced: true,
-      useSemanticSimilarity: true,
-      qualityThreshold: 0.7
-    });
-  } catch (error) {
-    console.error("Enhanced AI analysis failed:", error);
-    return await analyzeTracksWithAI(tracks, prompt, mood, userId, targetCount);
-  }
-}
-
-// PARALLEL FEATURE ANALYSIS - This is the key optimization
-async function enhancedFeatureAnalysisParallel(tracks, token) {
-  try {
-    console.log(`Starting PARALLEL Audd.io analysis for ${tracks.length} tracks...`);
-    const startTime = Date.now();
-
-    // Use the new parallel Audd.io analysis
-    const results = await enhancedFeatureAnalysis(tracks, token);
-
-    const analysisTime = Date.now() - startTime;
-    console.log(`Parallel Audd.io analysis completed in ${analysisTime}ms`);
-
-    // Add timing metadata to each track
-    const resultsWithTiming = results.map(track => ({
-      ...track,
-      parallelAnalysisTime: analysisTime,
-      analysisMethod: 'parallel_audd'
-    }));
-
-    return resultsWithTiming;
-
-  } catch (error) {
-    console.error("Parallel feature analysis failed:", error);
-
-    // Fallback: add synthetic features to all tracks
-    return tracks.map(track => ({
-      ...track,
-      audioFeatures: generateSyntheticAudioFeatures(track),
-      features_source: 'synthetic_fallback',
-      analysisMethod: 'fallback'
-    }));
-  }
-}
-
-// Generate synthetic audio features based on track metadata
-function generateSyntheticAudioFeatures(track) {
-  // Use track name, artist, and available metadata to make educated guesses
-  const trackName = (track.name || '').toLowerCase();
-  const artistName = (track.artists?.[0]?.name || '').toLowerCase();
-
-  // Basic heuristics for common words/artists
-  let valence = 0.5; // neutral default
-  let energy = 0.5;
-  let danceability = 0.5;
-  let acousticness = 0.3;
-
-  // Mood-based adjustments
-  if (trackName.includes('sad') || trackName.includes('cry') || trackName.includes('blue')) {
-    valence -= 0.3;
-    energy -= 0.2;
-  }
-  if (trackName.includes('happy') || trackName.includes('joy') || trackName.includes('dance')) {
-    valence += 0.3;
-    energy += 0.2;
-    danceability += 0.2;
-  }
-  if (trackName.includes('love') || trackName.includes('heart')) {
-    valence += 0.1;
-    acousticness += 0.2;
-  }
-  if (trackName.includes('rock') || trackName.includes('metal')) {
-    energy += 0.3;
-    acousticness -= 0.3;
-  }
-  if (trackName.includes('acoustic') || trackName.includes('piano')) {
-    acousticness += 0.4;
-    energy -= 0.2;
-  }
-
-  // Clamp values to valid range
-  const clamp = (val) => Math.max(0, Math.min(1, val));
-
-  return {
-    valence: clamp(valence),
-    energy: clamp(energy),
-    danceability: clamp(danceability),
-    acousticness: clamp(acousticness),
-    instrumentalness: 0.1,
-    liveness: 0.2,
-    loudness: -8,
-    speechiness: 0.1,
-    tempo: 120
-  };
-}
-
-// Enhanced track alignment evaluation with semantic similarity
-async function evaluateTrackAlignmentEnhanced(tracks, prompt, mood) {
-  try {
-    return await evaluateTrackAlignment(tracks, prompt, mood, {
-      enhanced: true,
-      useSemanticSimilarity: true,
-      qualityThreshold: 0.6,
-      diversityFactor: 0.3
-    });
-  } catch (error) {
-    console.error("Enhanced evaluation failed:", error);
-    return await evaluateTrackAlignment(tracks, prompt, mood);
-  }
-}
-
-// Enhanced Spotify recommendations with better search strategies
-async function generateEnhancedSpotifyRecommendations(token, mood, prompt, targetCount) {
-  try {
-    // Multiple recommendation strategies
-    const strategies = [
-      { seed_genres: getMoodGenres(mood), limit: Math.ceil(targetCount / 2) },
-      { seed_genres: getPromptGenres(prompt), limit: Math.floor(targetCount / 2) }
-    ];
-
-    const allRecommendations = [];
-
-    for (const strategy of strategies) {
-      try {
-        const params = new URLSearchParams({
-          ...strategy,
-          market: 'US',
-          ...getMoodAudioFeatures(mood)
-        });
-
-        const response = await fetch(`https://api.spotify.com/v1/recommendations?${params}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          allRecommendations.push(...(data.tracks || []));
-        }
-      } catch (strategyError) {
-        console.warn("Recommendation strategy failed:", strategyError.message);
-      }
-    }
-
-    // Remove duplicates and return
-    const unique = removeDuplicateSpotifyTracks(allRecommendations);
-    return unique.slice(0, targetCount);
-
-  } catch (error) {
-    console.error("Enhanced Spotify recommendations failed:", error);
-    return await generateFallbackRecommendations(token, prompt, mood, [], targetCount);
-  }
-}
-
-// Helper functions for enhanced Spotify recommendations
-function getMoodGenres(mood) {
-  const moodGenres = {
-    happy: ['pop', 'dance', 'funk'],
-    sad: ['indie', 'alternative', 'blues'],
-    energetic: ['rock', 'electronic', 'hip-hop'],
-    calm: ['ambient', 'classical', 'folk'],
-    romantic: ['r-n-b', 'soul', 'jazz'],
-    angry: ['metal', 'punk', 'hard-rock'],
-    balanced: ['pop', 'rock', 'indie']
-  };
-
-  return moodGenres[mood] || moodGenres.balanced;
-}
-
-function getPromptGenres(prompt) {
-  const lowerPrompt = prompt.toLowerCase();
-
-  if (lowerPrompt.includes('rock')) return ['rock', 'alternative'];
-  if (lowerPrompt.includes('pop')) return ['pop', 'dance'];
-  if (lowerPrompt.includes('jazz')) return ['jazz', 'blues'];
-  if (lowerPrompt.includes('classical')) return ['classical'];
-  if (lowerPrompt.includes('hip hop') || lowerPrompt.includes('rap')) return ['hip-hop', 'rap'];
-  if (lowerPrompt.includes('country')) return ['country'];
-  if (lowerPrompt.includes('electronic')) return ['electronic', 'techno'];
-
-  return ['pop', 'rock']; // default
-}
-
-function getMoodAudioFeatures(mood) {
-  const features = {
-    happy: { target_valence: 0.8, target_energy: 0.7 },
-    sad: { target_valence: 0.2, target_energy: 0.3 },
-    energetic: { target_energy: 0.9, target_danceability: 0.8 },
-    calm: { target_valence: 0.5, target_energy: 0.2 },
-    romantic: { target_valence: 0.6, target_acousticness: 0.6 },
-    angry: { target_energy: 0.9, target_valence: 0.2 },
-    balanced: { target_valence: 0.5, target_energy: 0.5 }
-  };
-
-  return features[mood] || features.balanced;
-}
-
-function removeDuplicateSpotifyTracks(tracks) {
-  const seen = new Set();
-  return tracks.filter(track => {
-    const key = `${track.name}-${track.artists[0]?.name}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-// Extract count from user prompt (e.g., "recommend 15 songs")
+// Extract count from user prompt
 function extractCountFromPrompt(prompt) {
   const matches = prompt.match(/\b(\d+)\s*(?:songs?|tracks?|recommendations?)\b/i);
   if (matches) {
     const count = parseInt(matches[1]);
-    return count > 0 && count <= 50 ? count : null; // Reasonable limits
+    return count > 0 && count <= 50 ? count : null;
   }
   return null;
 }

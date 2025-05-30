@@ -14,11 +14,11 @@ async function generateStoryWithFastAPI(lyrics, artist, song, customStory = null
     
     // Add custom story if provided
     if (customStory) {
-      requestBody.custom_story = customStory;
+      requestBody.customize = customStory;
       console.log(`Including custom story elements: ${customStory}`);
     }
     
-    const response = await fetch(`${fastApiUrl}/generate-story`, {
+    const response = await fetch(`${fastApiUrl}/story`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

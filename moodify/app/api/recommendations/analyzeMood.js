@@ -2,7 +2,7 @@ export async function analyzeMood(prompt) {
   try {
     console.log("Analyzing mood for prompt:", prompt);
     
-    const response = await fetch('http://54.152.238.168:8000/analyze-mood', {
+    const response = await fetch('http://54.152.238.168:8000/mood/analyze', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -16,7 +16,10 @@ export async function evaluateTrackAlignment(tracks, prompt, mood) {
       popularity: track.popularity,
       album: track.album?.name || 'Unknown Album',
       audioFeatures: track.audioFeatures || null,
-      auddMetadata: track.auddMetadata || null
+      auddMetadata: track.auddMetadata || null,
+      // Include enhanced features from FastAPI
+      enhanced_features: track.enhanced_features || null,
+      processing_status: track.processing_status || null
     }));
 
     // Split tracks into chunks for processing
@@ -32,43 +35,49 @@ export async function evaluateTrackAlignment(tracks, prompt, mood) {
       chunks.map(async (chunk) => {
         try {
           const response = await openai.chat.completions.create({
-            model: "gpt-4.1-mini",
+            model: "gpt-4o-mini",
             messages: [
               {
                 role: "system",
                 content: `
-          You are a music expert evaluating how well a set of songs matches a user's intended mood, based on title, artist, and musical/lyrical qualities.
-          
-          Instructions:
-          1. For each track, assess its alignment with the user’s described mood and prompt.
-          2. Consider:
-             - Known genre or artist style
-             - Audio features (if available): tempo, energy, valence, danceability
-             - Lyrical themes or vibe (if known)
-             - General emotional tone and instrumentation
-          3. Use a **1–10 scale** for alignment (10 = perfect fit, 7+ = reasonable match).
-          
-          Be generous: a score of 7+ means the song has any meaningful connection to the user's mood, even if indirect. For example:
-          - Happy moods → upbeat pop, dance, funk, sunshine indie, warm acoustic rock
-          - Chill moods → lo-fi, soft jazz, ambient, mellow R&B
-          - Sad moods → slow ballads, introspective lyrics, low valence tracks
-          
-          Return only a JSON object with:
-          {
-            "evaluations": [
-              { "id": "track_id", "score": 8, "reason": "brief reason for fit (mention genre, lyrics, or vibe)" },
-              ...
-            ]
-          }
-          `
+You are a music expert evaluating how well a set of songs matches a user's intended mood, based on title, artist, and musical/lyrical qualities.
+
+ENHANCED FEATURES AVAILABLE: You now have access to detailed audio features from professional analysis including BPM, energy levels, danceability, happiness/valence, and more.
+
+Instructions:
+1. For each track, assess its alignment with the user's described mood and prompt.
+2. Consider:
+   - Known genre or artist style
+   - Enhanced audio features (if available): BPM, energy (0-100), happiness (0-100), danceability, acousticness
+   - Standard audio features (if available): tempo, energy, valence, danceability  
+   - Lyrical themes or vibe (if known)
+   - General emotional tone and instrumentation
+3. Use a **1–10 scale** for alignment (10 = perfect fit, 7+ = reasonable match).
+
+PRIORITY: If enhanced_features are available, use those for more accurate mood matching:
+- Happy moods → high happiness (60+), good energy (50+), danceable
+- Sad moods → low happiness (0-40), lower energy (0-50), more acoustic
+- Energetic moods → high energy (70+), good danceability, higher BPM (120+)
+- Calm moods → lower energy (0-40), higher acousticness, slower BPM
+
+Be generous: a score of 7+ means the song has any meaningful connection to the user's mood, even if indirect.
+
+Return only a JSON object with:
+{
+  "evaluations": [
+    { "id": "track_id", "score": 8, "reason": "brief reason for fit (mention audio features if available)" },
+    ...
+  ]
+}
+                `
               },
               {
                 role: "user",
                 content: `User prompt: "${prompt}"
-          Target mood: "${mood}"
-          
-          Evaluate these tracks generously based on alignment:
-          ${JSON.stringify(chunk, null, 2)}`
+Target mood: "${mood}"
+
+Evaluate these tracks generously based on alignment (prioritize enhanced_features if available):
+${JSON.stringify(chunk, null, 2)}`
               }
             ],
             temperature: 0.2,
@@ -79,19 +88,18 @@ export async function evaluateTrackAlignment(tracks, prompt, mood) {
           const result = JSON.parse(jsonStr);
     
           return result.evaluations || [];        
-      } catch (error) {
-        console.error("Chunk evaluation error:", error);
-        // fallback scores if error occurs
-        return chunk.map(track => ({
-          id: track.id,
-          score: 6,
-          reason: 'Fallback scoring due to error'
-        }));
-      }
-    })
-  );
+        } catch (error) {
+          console.error("Chunk evaluation error:", error);
+          // fallback scores if error occurs
+          return chunk.map(track => ({
+            id: track.id,
+            score: 6,
+            reason: 'Fallback scoring due to error'
+          }));
+        }
+      })
+    );
 
-  
     // Filter tracks based on scores - be more lenient with threshold
     const highQualityTracks = [];
     const lowQualityTracks = [];
@@ -100,9 +108,7 @@ export async function evaluateTrackAlignment(tracks, prompt, mood) {
       res.status === 'fulfilled' ? res.value : []
     );
     
-    
     for (const track of tracks) {
-      
       const evaluation = flattenedEvaluations.find(e => e.id === track.id);
       const score = evaluation?.score || 6; // Default to decent score instead of 5
       

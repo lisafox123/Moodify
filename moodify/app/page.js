@@ -7,6 +7,8 @@ import StoryModal from './components/StoryModal';
 import FeedbackButton from './components/FeedbackButton';
 import { styles } from './styles';
 import EnhancedProgressDisplay from './components/EnhancedProgressDisplay'
+import Head from 'next/head';
+
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
@@ -931,294 +933,309 @@ export default function Home() {
   };
 
   return (
-    <div style={styles.container}>
-      <nav style={styles.navbar}>
-        <div style={styles.logoContainer}>
-          <Image
-            src="/logo.png"
-            alt="Moodify Logo"
-            width={40}
-            height={40}
-          />
-          <h1 style={styles.logoText}>Moodify</h1>
-        </div>
 
-        <button
-          style={{
-            ...styles.mobileMenuButton,
-            ...(mobileMenuOpen ? styles.mobileMenuButtonOpen : {})
-          }}
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
-        </button>
+    <>
 
-        <div style={{
-          ...styles.navRight,
-          ...(mobileMenuOpen ? styles.navRightMobile : {})
-        }}>
-          {isLoggedIn && userData ? (
-            <div style={styles.userProfile}>
-              {!isMobile && (
-                <span style={styles.userName}>
-                  {userData.display_name}
-                </span>
-              )}
+      <Head>
+        <title>My Custom Title</title>
+        <link rel="icon" href="/my-icon.png" />
+      </Head>
 
-              {userData.images && userData.images.length > 0 ? (
-                <Image
-                  src={userData.images[0].url}
-                  alt="User Avatar"
-                  width={40}
-                  height={40}
-                  style={styles.userAvatar}
-                  unoptimized={true}
-                />
-              ) : (
-                <div style={styles.userAvatarPlaceholder}>
-                  {userData.display_name ? userData.display_name[0].toUpperCase() : 'U'}
-                </div>
-              )}
-              <button
-                onClick={handleLogout}
-                style={styles.logoutButton}
-              >
-                Logout
-              </button>
-            </div>
-          ) : (
-            <button
-              style={styles.spotifyButton}
-              onClick={handleLogin}
-            >
-              Connect Spotify
-            </button>
-          )}
-        </div>
-      </nav>
-
-      <main style={styles.mainContainer}>
-        <div style={styles.heroSection}>
-          <h1 style={styles.mainTitle}>Generate Music Based on Your Mood</h1>
-          <p style={styles.mainDescription}>
-            Describe how you're feeling or what vibe you're looking for, and we'll create the perfect playlist
-          </p>
-        </div>
-
-        {error && (
-          <div style={styles.errorMessage}>
-            Error: {error}
+      <div style={styles.container}>
+        <nav style={styles.navbar}>
+          <div style={styles.logoContainer}>
+            <Image
+              src="/logo.png"
+              alt="Moodify Logo"
+              width={40}
+              height={40}
+            />
+            <h1 style={styles.logoText}>Moodify</h1>
           </div>
-        )}
 
-        <div style={styles.settingsSection}>
-          <h2 style={styles.sectionTitle}>Settings</h2>
-          <div style={styles.settingsGrid}>
-            <ToggleSwitch
-              isOn={moodMode}
-              label="Recommendation Type"
-              leftText="Classic"
-              rightText="Mood"
-              onToggle={() => setMoodMode(!moodMode)}
-            />
-            <ToggleSwitch
-              isOn={playlistMode}
-              label="Output Format"
-              leftText="Track"
-              rightText="Playlist"
-              onToggle={() => setPlaylistMode(!playlistMode)}
-            />
-            <ToggleSwitch
-              isOn={customMode}
-              label="Story Style"
-              leftText="Classic"
-              rightText="Custom"
-              onToggle={() => setCustomMode(!customMode)}
-            />
-            {customMode && (
-              <div style={styles.customStoryContainer}>
-                <input
-                  type="text"
-                  placeholder="e.g., 'A traveler discovering new sounds...'"
-                  value={customStory}
-                  onChange={(e) => setCustomStory(e.target.value)}
-                  style={styles.customStoryInput}
-                />
+          <button
+            style={{
+              ...styles.mobileMenuButton,
+              ...(mobileMenuOpen ? styles.mobileMenuButtonOpen : {})
+            }}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+          </button>
+
+          <div style={{
+            ...styles.navRight,
+            ...(mobileMenuOpen ? styles.navRightMobile : {})
+          }}>
+            {isLoggedIn && userData ? (
+              <div style={styles.userProfile}>
+                {!isMobile && (
+                  <span style={styles.userName}>
+                    {userData.display_name}
+                  </span>
+                )}
+
+                {userData.images && userData.images.length > 0 ? (
+                  <Image
+                    src={userData.images[0].url}
+                    alt="User Avatar"
+                    width={40}
+                    height={40}
+                    style={styles.userAvatar}
+                    unoptimized={true}
+                  />
+                ) : (
+                  <div style={styles.userAvatarPlaceholder}>
+                    {userData.display_name ? userData.display_name[0].toUpperCase() : 'U'}
+                  </div>
+                )}
+                <button
+                  onClick={handleLogout}
+                  style={styles.logoutButton}
+                >
+                  Logout
+                </button>
               </div>
+            ) : (
+              <button
+                style={styles.spotifyButton}
+                onClick={handleLogin}
+              >
+                Connect Spotify
+              </button>
             )}
           </div>
-        </div>
+        </nav>
 
-        <div style={styles.inputSection}>
-          <div style={styles.inputContainer}>
-            <label style={styles.inputLabel} htmlFor="mood-prompt">
-              Enter your mood or vibe
-            </label>
-            <input
-              id="mood-prompt"
-              type="text"
-              placeholder="e.g., 'Upbeat music for a morning workout' or 'Calm piano for reading'"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              style={styles.moodInput}
-            />
 
-            <div style={styles.samplePrompts}>
-              {samplePrompts.map((samplePrompt, index) => (
-                <button
-                  key={index}
-                  style={styles.samplePrompt}
-                  onClick={() => setPrompt(samplePrompt)}
-                >
-                  {samplePrompt}
-                </button>
-              ))}
-            </div>
 
-            <button
-              onClick={generateRecommendations}
-              disabled={!isLoggedIn || !prompt || isGenerating}
-              style={{
-                ...styles.generateButton,
-                ...(!isLoggedIn || !prompt || isGenerating ? styles.buttonDisabled : {})
-              }}
-            >
-              {isGenerating ? 'Generating...' : 'Generate Recommendations'}
-            </button>
-          </div>
-        </div>
-
-        {(isGenerating || currentRequestId) && (
-          <EnhancedProgressDisplay
-            requestId={currentRequestId}
-            isGenerating={isGenerating}
-            onComplete={handleProgressComplete}
-            onError={handleProgressError}
-          />
-        )}
+        <main style={styles.mainContainer}>
 
 
         {isLoggedIn && (
-          <div style={styles.tracksSection}>
-            <h2 style={styles.sectionTitle}>Your Top Tracks</h2>
+            <div style={styles.tracksSection}>
+              <h2 style={styles.sectionTitle}>Your Top Tracks</h2>
 
-            {isLoadingTracks ? (
-              <div style={styles.loadingSpinner}>Loading your top tracks...</div>
-            ) : topTracks.length > 0 ? (
+              {isLoadingTracks ? (
+                <div style={styles.loadingSpinner}>Loading your top tracks...</div>
+              ) : topTracks.length > 0 ? (
+                <div style={styles.tracksList}>
+                  {topTracks.map((track, index) => (
+                    <TrackCard
+                      key={track.id}
+                      track={track}
+                      index={index}
+                      isRecommendation={false}
+                      onStoryClick={handleTrackClick}
+                      isLoading={isLoading}
+                      clickedTrackId={clickedTrackId}
+                      userData={userData}
+                      onFeedbackSubmitted={handleFeedbackSubmitted}
+                      expanded={false}
+                      onToggleExpand={() => { }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div style={styles.loadingSpinner}>No top tracks found. Try listening to more music on Spotify!</div>
+              )}
+            </div>
+          )}
+
+          <div style={styles.heroSection}>
+            <h1 style={styles.mainTitle}>Generate Music Based on Your Mood</h1>
+            <p style={styles.mainDescription}>
+              Describe how you're feeling or what vibe you're looking for, and we'll create the perfect playlist
+            </p>
+          </div>
+
+          {error && (
+            <div style={styles.errorMessage}>
+              Error: {error}
+            </div>
+          )}
+
+          <div style={styles.settingsSection}>
+            <h2 style={styles.sectionTitle}>Settings</h2>
+            <div style={styles.settingsGrid}>
+              <ToggleSwitch
+                isOn={moodMode}
+                label="Recommendation Type"
+                leftText="Classic"
+                rightText="Mood"
+                onToggle={() => setMoodMode(!moodMode)}
+              />
+              <ToggleSwitch
+                isOn={playlistMode}
+                label="Output Format"
+                leftText="Track"
+                rightText="Playlist"
+                onToggle={() => setPlaylistMode(!playlistMode)}
+              />
+              <ToggleSwitch
+                isOn={customMode}
+                label="Story Style"
+                leftText="Classic"
+                rightText="Custom"
+                onToggle={() => setCustomMode(!customMode)}
+              />
+              {customMode && (
+                <div style={styles.customStoryContainer}>
+                  <input
+                    type="text"
+                    placeholder="e.g., 'A traveler discovering new sounds...'"
+                    value={customStory}
+                    onChange={(e) => setCustomStory(e.target.value)}
+                    style={styles.customStoryInput}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={styles.inputSection}>
+            <div style={styles.inputContainer}>
+              <label style={styles.inputLabel} htmlFor="mood-prompt">
+                Enter your mood or vibe
+              </label>
+              <input
+                id="mood-prompt"
+                type="text"
+                placeholder="e.g., 'Upbeat music for a morning workout' or 'Calm piano for reading'"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                style={styles.moodInput}
+              />
+
+              <div style={styles.samplePrompts}>
+                {samplePrompts.map((samplePrompt, index) => (
+                  <button
+                    key={index}
+                    style={styles.samplePrompt}
+                    onClick={() => setPrompt(samplePrompt)}
+                  >
+                    {samplePrompt}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={generateRecommendations}
+                disabled={!isLoggedIn || !prompt || isGenerating}
+                style={{
+                  ...styles.generateButton,
+                  ...(!isLoggedIn || !prompt || isGenerating ? styles.buttonDisabled : {})
+                }}
+              >
+                {isGenerating ? 'Generating...' : 'Generate Recommendations'}
+              </button>
+            </div>
+          </div>
+
+          {(isGenerating || currentRequestId) && (
+            <EnhancedProgressDisplay
+              requestId={currentRequestId}
+              isGenerating={isGenerating}
+              onComplete={handleProgressComplete}
+              onError={handleProgressError}
+            />
+          )}
+
+
+          {recommendations.length > 0 && (
+            <div style={styles.recommendationsSection}>
+              <h2 style={styles.sectionTitle}>Your Personalized Recommendations</h2>
+
+              {audioFeaturesData && (
+                <div style={styles.moodFeatures}>
+                  <h3>Target Audio Profile</h3>
+                  <AudioFeaturesDisplay features={audioFeaturesData} />
+                </div>
+              )}
+
+              {recommendationStory && (
+                <div style={styles.storyText}>
+                  {recommendationStory}
+                </div>
+              )}
+
               <div style={styles.tracksList}>
-                {topTracks.map((track, index) => (
+                {recommendations.map((track, index) => (
                   <TrackCard
                     key={track.id}
                     track={track}
                     index={index}
-                    isRecommendation={false}
+                    isRecommendation={true}
                     onStoryClick={handleTrackClick}
                     isLoading={isLoading}
                     clickedTrackId={clickedTrackId}
                     userData={userData}
                     onFeedbackSubmitted={handleFeedbackSubmitted}
-                    expanded={false}
-                    onToggleExpand={() => { }}
+                    expanded={expandedTrackId === track.id}
+                    onToggleExpand={toggleTrackDetails}
                   />
                 ))}
               </div>
-            ) : (
-              <div style={styles.loadingSpinner}>No top tracks found. Try listening to more music on Spotify!</div>
-            )}
-          </div>
-        )}
 
-        {recommendations.length > 0 && (
-          <div style={styles.recommendationsSection}>
-            <h2 style={styles.sectionTitle}>Your Personalized Recommendations</h2>
+              {aiInsights && aiInsights.length > 0 && (
+                <div style={styles.insightsSection}>
+                  <div style={styles.insightsTitle}>AI Music Insights</div>
+                  <div style={styles.insightsList}>
+                    {aiInsights.map((insight, index) => (
+                      <div key={index} style={styles.insightItem}>
+                        {insight}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            {audioFeaturesData && (
-              <div style={styles.moodFeatures}>
-                <h3>Target Audio Profile</h3>
-                <AudioFeaturesDisplay features={audioFeaturesData} />
-              </div>
-            )}
-
-            {recommendationStory && (
-              <div style={styles.storyText}>
-                {recommendationStory}
-              </div>
-            )}
-
-            <div style={styles.tracksList}>
-              {recommendations.map((track, index) => (
-                <TrackCard
-                  key={track.id}
-                  track={track}
-                  index={index}
-                  isRecommendation={true}
-                  onStoryClick={handleTrackClick}
-                  isLoading={isLoading}
-                  clickedTrackId={clickedTrackId}
-                  userData={userData}
-                  onFeedbackSubmitted={handleFeedbackSubmitted}
-                  expanded={expandedTrackId === track.id}
-                  onToggleExpand={toggleTrackDetails}
-                />
-              ))}
+              {generatedPlaylist && (
+                <div style={styles.playlistSection}>
+                  <div style={styles.playlistTitle}>
+                    Playlist Created: {generatedPlaylist.name}
+                  </div>
+                  <p style={styles.playlistDescription}>{generatedPlaylist.description}</p>
+                  <div style={styles.playlistActions}>
+                    <a
+                      href={generatedPlaylist.external_urls.spotify}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        ...styles.actionButton,
+                        ...styles.spotifyPlayButton
+                      }}
+                    >
+                      Open in Spotify
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
+          )}
+        </main>
 
-            {aiInsights && aiInsights.length > 0 && (
-              <div style={styles.insightsSection}>
-                <div style={styles.insightsTitle}>AI Music Insights</div>
-                <div style={styles.insightsList}>
-                  {aiInsights.map((insight, index) => (
-                    <div key={index} style={styles.insightItem}>
-                      {insight}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {generatedPlaylist && (
-              <div style={styles.playlistSection}>
-                <div style={styles.playlistTitle}>
-                  Playlist Created: {generatedPlaylist.name}
-                </div>
-                <p style={styles.playlistDescription}>{generatedPlaylist.description}</p>
-                <div style={styles.playlistActions}>
-                  <a
-                    href={generatedPlaylist.external_urls.spotify}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      ...styles.actionButton,
-                      ...styles.spotifyPlayButton
-                    }}
-                  >
-                    Open in Spotify
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
+        {isModalOpen && (
+          <>
+            {console.log('Rendering modal with:', { story, trackId, isModalOpen })}
+            <StoryModal
+              lyrics={lyrics}
+              story={story || 'Story is generating...'}
+              trackId={trackId}
+              isLoading={isLoading}
+              onClose={() => {
+                console.log('Modal onClose triggered');
+                setIsModalOpen(false);
+                setStory(null);
+                setTrackId(null);
+                setError(null);
+              }}
+            />
+          </>
         )}
-      </main>
-      {isModalOpen && (
-        <>
-          {console.log('Rendering modal with:', { story, trackId, isModalOpen })}
-          <StoryModal
-            lyrics={lyrics}
-            story={story || 'Story is generating...'}
-            trackId={trackId}
-            isLoading={isLoading}
-            onClose={() => {
-              console.log('Modal onClose triggered');
-              setIsModalOpen(false);
-              setStory(null);
-              setTrackId(null);
-              setError(null);
-            }}
-          />
-        </>
-      )}
-    </div>
-  );
+      </div>
+
+    </>
+      );
 }
