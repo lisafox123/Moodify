@@ -153,7 +153,7 @@ async function getAIArtistRecommendations(artists, prompt, mood) {
     const artistNames = artists.map(a => a.name).join(', ');
     
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", 
+      model: "gpt-4o-mini", 
       messages: [
         {
           role: "system",

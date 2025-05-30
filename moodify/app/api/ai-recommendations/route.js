@@ -43,7 +43,7 @@ export async function POST(request) {
 
     try {
       const storyResponse = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -83,7 +83,7 @@ Make the story poetic, personal, emotionally intelligent, and deeply tied to the
 
       // Now generate insights about the playlist
       const insightsResponse = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",

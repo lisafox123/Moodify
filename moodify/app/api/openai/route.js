@@ -65,7 +65,7 @@ Your insights should be thoughtful, specific to these songs, and written in 1-2 
     // Make parallel requests to OpenAI
     const [storyResponse, insightsResponse] = await Promise.all([
       openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "You are a creative music expert who writes engaging, evocative content about music." },
           { role: "user", content: storyPrompt }
@@ -75,7 +75,7 @@ Your insights should be thoughtful, specific to these songs, and written in 1-2 
       }),
       
       openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "You are a music analyst who provides insightful, specific observations about music." },
           { role: "user", content: insightsPrompt }
