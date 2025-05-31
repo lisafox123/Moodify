@@ -1,4 +1,4 @@
-import { DynamicTool } from '@langchain/core/tools';
+const axios = require('axios');
 
 // Environment variables
 const braveApiKey = process.env.BRAVE_API_KEY;
@@ -105,7 +105,6 @@ async function searchSongOnGenius(artist, song) {
 
     // Require minimum threshold for acceptance
     const MIN_SCORE_THRESHOLD = 70;
-
     if (bestMatch && bestScore >= MIN_SCORE_THRESHOLD) {
       console.log(`✓ Best match: ${bestMatch.primary_artist.name} - ${bestMatch.title} (Score: ${bestScore})`);
       return bestMatch;
@@ -690,13 +689,14 @@ async function fetchLyricsWithBraveAPI(artist, song) {
     const searchQuery = `${artist} ${song} lyrics`;
     const braveUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(searchQuery)}`;
 
-    const response = await fetch(braveUrl, {
+    const response = await axios.get(braveUrl, {
       headers: {
         'Accept': 'application/json',
-        'Accept-Encoding': 'gzip',
         'X-Subscription-Token': braveApiKey
       }
     });
+    
+    
 
     if (!response.ok) {
       throw new Error(`Brave Search API request failed: ${response.status}`);
