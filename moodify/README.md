@@ -1,4 +1,19 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+##  About This Project
+
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).  
+It is designed to recommend music based on users’ emotions and enhance the experience with short, personalized stories that match the mood.
+
+##  Features
+
+- 🎧 Emotion-based music recommendations
+- 🔗 Spotify API Integration
+- 📖 AI Storytelling that matches your mood
+
+##  Tech Stack
+
+- **Frontend:** React.js, Next.js
+- **Backend / Framework:** Next.js API Routes
+- **Database:** MongoDB
 
 ## Getting Started
 
